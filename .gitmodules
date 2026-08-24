@@ -1,3 +1,6 @@
 [submodule "lib/fprime"]
 	path = lib/fprime
 	url = https://github.com/nasa/fprime.git
+[submodule "fprime-baremetal"]
+	path = fprime-baremetal
+	url = https://github.com/fprime-community/fprime-baremetal
