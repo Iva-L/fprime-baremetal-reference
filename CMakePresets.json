@@ -34,6 +34,24 @@
         "cacheVariables": {
             "BUILD_TESTING": "ON"
         }
+      },
+      {
+        "name": "stm32h7",
+        "displayName": "STM32H7 bare-metal Release",
+        "inherits": "fprime",
+        "binaryDir": "${sourceDir}/build-fprime-stm32h7",
+        "cacheVariables": {
+          "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain/stm32h7.cmake",
+          "CMAKE_BUILD_TYPE": "Release"
+        }
+      },
+      {
+        "name": "stm32h7-debug",
+        "displayName": "STM32H7 bare-metal Debug",
+        "inherits": "stm32h7",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug"
+        }
       }
   ]
 }
