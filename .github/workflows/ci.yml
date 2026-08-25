@@ -1,4 +1,4 @@
-name: STM32H7 Baremetal F' CI
+name: fprime-baremetal-reference CI
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-stm32h7:
-    name: Cross-Compile STM32H7 Baremetal Deployment
+  build-fprime-baremetal-reference:
+    name: Cross-Compile fprime-baremetal-reference (STM32H7)
     runs-on: ubuntu-latest
 
     steps:

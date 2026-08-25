@@ -1,4 +1,4 @@
-# STM32H7 Baremetal F´ project reference
+# Fprime Baremetal Reference (STM32H7 F´)
 
 This project is an implementation of F´ on baremetal hardware, specifically for STM32H7 based microcontrollers.
 
