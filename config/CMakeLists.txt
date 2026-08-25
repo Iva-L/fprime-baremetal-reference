@@ -6,4 +6,4 @@
 ####
 
 add_fprime_subdirectory("${FPRIME_FRAMEWORK_PATH}/default/config")
-add_fprime_subdirectory("${FPRIME_PROJECT_ROOT}/fprime-baremetal/fprime-baremetal/config")
+add_fprime_subdirectory("${FPRIME_PROJECT_ROOT}/lib/fprime-baremetal/fprime-baremetal/config")
