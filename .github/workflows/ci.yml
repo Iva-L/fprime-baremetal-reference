@@ -30,7 +30,7 @@ jobs:
       - name: Install F' Tools
         run: |
           python -m pip install --upgrade pip
-          pip install fprime-tools
+          pip install fprime-tools fprime-fpp
 
       - name: Verify Environment
         run: |
