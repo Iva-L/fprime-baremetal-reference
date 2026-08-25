@@ -21,9 +21,10 @@ jobs:
 
       - name: Install F' Formatting Tools
         run: |
-          pip install fprime-cli
+          python -m pip install --upgrade pip
+          pip install fprime-tools
 
       - name: Run Format Check
         run: |
-          # Checks files against F' style rules
+          # Checks files against F' style rules using fprime-util
           fprime-util format --check
