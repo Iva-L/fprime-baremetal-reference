@@ -1,6 +1,6 @@
 #ifndef STM32_UART_DRIVER_HPP
 #define STM32_UART_DRIVER_HPP
-#include <fprime-stm32/Components/Stm32UartDriver/UartDriverComponentAc.hpp>
+#include <lib/fprime-stm32/Components/Stm32UartDriver/UartDriverComponentAc.hpp>
 namespace Stm32 {
 class UartDriver final : public UartDriverComponentBase {
 public:

@@ -27,6 +27,12 @@ set(FPRIME_STM32_HAL_SOURCES
 add_library(FprimeStm32 STATIC ${FPRIME_STM32_HAL_SOURCES})
 
 target_include_directories(FprimeStm32 PUBLIC
+    "${PROJECT_SOURCE_DIR}"
+    "${CMAKE_BINARY_DIR}"
+    "${FPRIME_PROJECT_ROOT}"
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/Components/Stm32Timer"
+    "${CMAKE_CURRENT_BINARY_DIR}/Components/Stm32UartDriver"
     "${CMAKE_CURRENT_LIST_DIR}/include"
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Include"
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Device/ST/STM32H7xx/Include"

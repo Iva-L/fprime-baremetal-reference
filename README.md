@@ -25,7 +25,7 @@ executive `main()`, and STM32 USART1 DMA driver.
 
 ## Current migration status
 
-The CubeMX hardware foundation is now integrated under `fprime-stm32/`. This includes the STM32H753 CMSIS device headers, selected HAL drivers, the 25 MHz HSE clock configuration, MSP initialization, interrupt handlers, GPIO/DMA/TIM/USART support, startup assembly, and the deployment linker script.
+The CubeMX hardware foundation is now integrated under `lib/fprime-stm32/`. This includes the STM32H753 CMSIS device headers, selected HAL drivers, the 25 MHz HSE clock configuration, MSP initialization, interrupt handlers, GPIO/DMA/TIM/USART support, startup assembly, and the deployment linker script.
 
 The project generates and compiles the migrated hardware sources and FPP boundaries. The final STM32 image is not yet linkable because the current ReferenceDeployment exceeds the configured AXI SRAM region by approximately 149 KiB. The next phase is therefore memory and framework tailoring: reduce the reference topology, tune queues/stacks/buffers, and distribute linker sections before implementing the remaining bare-metal OSAL behavior.
 
