@@ -19,6 +19,18 @@ add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
 register_fprime_deployment(
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/startup/startup_stm32h753xx.s"
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
+        FprimeStm32
+)
+
+target_link_options(ReferenceDeployment PRIVATE
+    "-T${CMAKE_CURRENT_LIST_DIR}/linker/STM32H753XIHx_FLASH.ld"
+    "-Wl,--gc-sections"
+    "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/ReferenceDeployment.map"
+    "--specs=nosys.specs"
+)
+target_sources(ReferenceDeployment PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/startup/startup_stm32h753xx.s"
 )

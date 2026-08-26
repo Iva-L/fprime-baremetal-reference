@@ -9,6 +9,7 @@ build-fprime-*
 
 # Misc
 /venv/
+/.temp/
 /fprime-venv/
 /.idea/
 /.vscode/

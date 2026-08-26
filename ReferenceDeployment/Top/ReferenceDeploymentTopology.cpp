@@ -74,25 +74,15 @@ void setupTopology(const TopologyState& state) {
     loadParameters();
     // Autocoded task kick-off (active components). Function provided by autocoder.
     startTasks(state);
-    if (state.uartDevice != nullptr) {
-        Os::TaskString name("ReceiveTask");
-        // Uplink is configured for receive so a socket task is started
-        if (comDriver.open(state.uartDevice, static_cast<Drv::LinuxUartDriver::UartBaudRate>(state.baudRate), 
-                           Drv::LinuxUartDriver::NO_FLOW, Drv::LinuxUartDriver::PARITY_NONE, 2048)) {
-            comDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
-        } else {
-            printf("Failed to open UART device %s at baud rate %" PRIu32 "\n", state.uartDevice, state.baudRate);
-        }
-    }
 }
 
 void startRateGroups() {
     // Blocks until stopRateGroups() is called (e.g. from signal handler)
-    timer.startTimer(rateGroupInterval);
+    // STM32 timer interrupts will drive rate groups in the board main loop.
 }
 
 void stopRateGroups() {
-    timer.quit();
+    // Timer shutdown is not used by the bare-metal cyclic executive.
 }
 
 void teardownTopology(const TopologyState& state) {
@@ -101,8 +91,6 @@ void teardownTopology(const TopologyState& state) {
     freeThreads(state);
 
     // Other task clean-up.
-    comDriver.quitReadThread();
-    (void)comDriver.join();
 
     // Resource deallocation
     cmdSeq.deallocateBuffer(mallocator);

@@ -19,7 +19,7 @@ module ReferenceDeployment {
 
   module Default {
     constant QUEUE_SIZE = 10
-    constant STACK_SIZE = 64 * 1024
+    constant STACK_SIZE = 8 * 1024
   }
 
   # ----------------------------------------------------------------------
@@ -64,8 +64,8 @@ module ReferenceDeployment {
 
   instance systemResources: Svc.SystemResources base id 0x10012000
 
-  instance timer: Svc.LinuxTimer base id 0x10013000
+  instance timer: Stm32.Timer base id 0x10013000
 
-  instance comDriver: Drv.LinuxUartDriver base id 0x10014000
+  instance comDriver: Stm32.UartDriver base id 0x10014000
 
 }
