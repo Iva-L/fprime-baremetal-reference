@@ -18,7 +18,7 @@ module ReferenceDeployment {
   # ----------------------------------------------------------------------
 
   module Default {
-    constant QUEUE_SIZE = 10
+    constant QUEUE_SIZE = 4
     constant STACK_SIZE = 8 * 1024
   }
 

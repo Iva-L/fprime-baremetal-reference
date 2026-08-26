@@ -38,7 +38,7 @@ extern "C" {
 // Allow objects to have names. Allocates storage for each instance
 #ifndef FW_OBJECT_NAMES
 #define FW_OBJECT_NAMES \
-    (1)  //!< Indicates whether or not object names are stored (more memory, can be used for tracking objects)
+    (0)  //!< Indicates whether or not object names are stored (more memory, can be used for tracking objects)
 #endif
 
 // To reduce binary size, FW_OPTIONAL_NAME(<string>) can be used to substitute strings with an empty string
@@ -112,7 +112,7 @@ extern "C" {
 #if FW_OBJECT_NAMES
 #ifndef FW_OBJ_NAME_BUFFER_SIZE
 #define FW_OBJ_NAME_BUFFER_SIZE \
-    (80)  //!< Size of object name (if object names enabled). AC Limits to 80, truncation occurs above 80.
+    (32)  //!< Size of object name (if object names enabled). AC Limits to 80, truncation occurs above 80.
 #endif
 #endif
 
@@ -129,13 +129,13 @@ extern "C" {
 // Enables text logging of events as well as data logging. Adds a second logging port for text output.
 // In order to set this to 0, FPRIME_ENABLE_TEXT_LOGGERS must be set to OFF.
 #ifndef FW_ENABLE_TEXT_LOGGING
-#define FW_ENABLE_TEXT_LOGGING (1)  //!< Indicates whether text logging is turned on
+#define FW_ENABLE_TEXT_LOGGING (0)  //!< Indicates whether text logging is turned on
 #endif
 
 // Define if serializables have toString() method. Turning off will save code space and
 // string constants. Must be enabled if text logging enabled
 #ifndef FW_SERIALIZABLE_TO_STRING
-#define FW_SERIALIZABLE_TO_STRING (1)  //!< Indicates if autocoded serializables have toString() methods
+#define FW_SERIALIZABLE_TO_STRING (0)  //!< Indicates if autocoded serializables have toString() methods
 #endif
 
 // Some settings to enable AMPCS compatibility. This breaks regular ISF GUI compatibility

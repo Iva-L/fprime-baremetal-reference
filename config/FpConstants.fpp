@@ -17,7 +17,7 @@ constant FW_QUEUE_NAME_BUFFER_SIZE = 80
 constant FW_TASK_NAME_BUFFER_SIZE = 80
 
 @ Specifies the size of the buffer that contains a communications packet
-constant FW_COM_BUFFER_MAX_SIZE = 512
+constant FW_COM_BUFFER_MAX_SIZE = 256
 
 @ Specifies the size of the buffer attached to state machine signals
 constant FW_SM_SIGNAL_BUFFER_MAX_SIZE = 128
@@ -51,13 +51,13 @@ constant FW_PARAM_BUFFER_MAX_SIZE = FW_COM_BUFFER_MAX_SIZE - sizeof(FwPrmIdType)
 constant FW_PARAM_STRING_MAX_SIZE = 40
 
 @ Specifies the maximum size of a file downlink chunk
-constant FW_FILE_BUFFER_MAX_SIZE = FW_COM_BUFFER_MAX_SIZE
+constant FW_FILE_BUFFER_MAX_SIZE = 512
 
 @ Specifies the maximum size of a string in an interface call
-constant FW_INTERNAL_INTERFACE_STRING_MAX_SIZE = 256
+constant FW_INTERNAL_INTERFACE_STRING_MAX_SIZE = 64
 
 @ Defines the size of the text log string buffer. Should be large enough for format string and arguments
-constant FW_LOG_TEXT_BUFFER_SIZE = 256
+constant FW_LOG_TEXT_BUFFER_SIZE = 64
 
 @ Configuration for Fw::String
 @ Note: FPrimeBasicTypes.hpp needs to be updated to sync enum
@@ -68,10 +68,10 @@ constant FW_FIXED_LENGTH_STRING_SIZE = 256
 # ---------------------------------------------------------------------
 
 @ For the simple object registry provided with the framework, this specifies how many objects the registry will store.
-constant FW_OBJ_SIMPLE_REG_ENTRIES = 500
+constant FW_OBJ_SIMPLE_REG_ENTRIES = 64
 
 @ For the simple queue registry provided with the framework, this specifies how many queues the registry will store.
-constant FW_QUEUE_SIMPLE_QUEUE_ENTRIES = 100
+constant FW_QUEUE_SIMPLE_QUEUE_ENTRIES = 32
 
 @ Maximum number of cascading FW_ASSERT check failures before forcing a system assert
 constant FW_ASSERT_COUNT_MAX = 10
