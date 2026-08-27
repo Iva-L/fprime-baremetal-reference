@@ -20,6 +20,7 @@ register_fprime_deployment(
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/BootstrapAllocator.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/MallocWrappers.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/startup/startup_stm32h753xx.s"
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
@@ -43,6 +44,10 @@ target_link_options(ReferenceDeployment PRIVATE
     "-Wl,--undefined=_ZdaPvl"
     "-Wl,--undefined=_ZdlPvj"
     "-Wl,--undefined=_ZdaPvj"
+    "-Wl,--wrap=malloc"
+    "-Wl,--wrap=calloc"
+    "-Wl,--wrap=realloc"
+    "-Wl,--wrap=free"
     "--specs=nosys.specs"
 )
 target_sources(ReferenceDeployment PRIVATE
