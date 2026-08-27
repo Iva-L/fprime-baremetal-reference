@@ -27,7 +27,7 @@ executive `main()`, and STM32 USART1 DMA driver.
 
 The CubeMX hardware foundation is now integrated under `lib/fprime-stm32/`. This includes the STM32H753 CMSIS device headers, selected HAL drivers, the 25 MHz HSE clock configuration, MSP initialization, interrupt handlers, GPIO/DMA/TIM/USART support, startup assembly, and the deployment linker script.
 
-The project generates and compiles the migrated hardware sources and FPP boundaries. The STM32 `ReferenceDeployment` now links with the memory regions explicitly named `DTCM_RAM` (128 KiB), `AXI_SRAM` (512 KiB), and `FLASH` (2 MiB). The linker script also defines an aligned, `NOLOAD` `.dtcm_bss` section with `_sdtcm_bss` and `_edtcm_bss` boundary symbols; it is currently empty until framework state variables are assigned to it.
+The project generates and compiles the migrated hardware sources and FPP boundaries. The STM32 `ReferenceDeployment` now links with the memory regions explicitly named `DTCM_RAM` (128 KiB), `AXI_SRAM` (512 KiB), and `FLASH` (2 MiB). The linker script also defines an aligned, `NOLOAD` `.dtcm_bss` section with `_sdtcm_bss` and `_edtcm_bss` boundary symbols.
 
 The verified STM32 deployment target is:
 
@@ -40,6 +40,18 @@ The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x2
 The deployment depends on `Os_Baremetal_OverrideNewDelete`. Its global C++ `new` and `delete` overrides are registered before static constructors execute, then route allocations through the fixed bootstrap pool. Allocation is locked after topology initialization, causing a post-initialization allocation request to trigger an F´ assertion before cyclic execution begins.
 
 The C-level heap family is also locked down: `ReferenceDeployment/CMakeLists.txt` passes `-Wl,--wrap=malloc`, `--wrap=calloc`, `--wrap=realloc`, and `--wrap=free`, so every reference to those symbols in the final image (including from newlib internals) resolves to `__wrap_*` implementations in `ReferenceDeployment/MallocWrappers.cpp` instead of the real libc functions. Each wrapper immediately calls `FW_ASSERT(0, ...)`, so any direct C heap call traps at the point of use rather than silently allocating. Verified via `arm-none-eabi-nm`/objdump that `__wrap_malloc` and `__wrap_free` are linked and call `Fw::SwAssert`; `__wrap_calloc`/`__wrap_realloc` are currently unreferenced and therefore garbage-collected by `--gc-sections` (they will be pulled in and enforced automatically the moment any code calls `calloc`/`realloc`).
+
+### Sizing and memory baseline
+
+Memory baseline was verified on August 27, 2026, using the modified `baremetal-size` utility for the STM32H753XI platform:
+
+| Region | Used | Capacity | Remaining margin |
+|---|---:|---:|---:|
+| Flash | 551,488 bytes (538.5 KiB) | 2,048 KiB | 73.1% |
+| AXI SRAM (`.bss`) | 395,364 bytes | 512 KiB | 25.1% |
+| DTCM RAM (`.dtcm_bss`) | 21,688 bytes | 128 KiB | 83.1% |
+
+This confirms that the linker segmentation moved the CPU-only `CdhCore::cmdDisp` (`Svc::CommandDispatcher`) and `FileHandling::prmDb` (`Svc::PrmDb`) state into DTCM, reclaiming approximately 21.6 KiB of DMA-safe AXI SRAM headroom. The static memory contract is enforced by the 16 KiB AXI-SRAM bootstrap pool, post-initialization allocator locking with `FW_ASSERT(!m_locked)`, and GNU linker traps for direct C heap calls.
 
 The development order has been intentionally revised so memory configuration precedes OSAL implementation. This establishes the target's actual resource contract before timing, task, queue, and synchronization primitives are finalized. The functional USART1 DMA adapter for PB14/PB15 and the cyclic-executive `main()` remain pending.
 

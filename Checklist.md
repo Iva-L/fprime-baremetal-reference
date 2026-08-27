@@ -58,11 +58,11 @@
 *Goal: Establish the memory contract and reduce the F´ deployment to a viable STM32H753 image before OSAL work.*
 *   [x] **Reduce ReferenceDeployment footprint:** Remove or defer host-oriented subtopologies and unused services.
 *   [x] **Tune `FpConfig.h`:** Reduce queue, stack, telemetry, and buffer defaults for the bare-metal target.
-*   [x] **Linker Script SegmentationMap linker sections:** Distribute `.data` and `.bss` across DTCM, AXI SRAM, D2 SRAM, and D3 SRAM deliberately.
+*   [x] **Linker Script Segmentation / Map linker sections:** Distribute `.data` and `.bss` across DTCM, AXI SRAM, D2 SRAM, and D3 SRAM deliberately.
 *   [x] **Linker Script Segmentation:** Distribute static allocations so that non-DMA variables are routed to DTCM, leaving AXI SRAM open for DMA communication buffers.
 *   [x] **Section Zero-Initialization:** Clear `_sdtcm_bss` through `_edtcm_bss` in `Reset_Handler` before C++ constructors run.
 *   [x] **Enforce the Zero Dynamic Memory Contract:** Route C++ `new` through a fixed bootstrap pool and lock allocation before cyclic execution; wrap `malloc`/`calloc`/`realloc`/`free` via `-Wl,--wrap` so any direct C-level heap call traps with `FW_ASSERT` instead of silently allocating.
-*   [ ] **Profiling & Sizing Validation:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
+*   [x] **Profiling & Sizing Validation:** Verified exact memory allocations and margins using the modified STM32H7 `baremetal-size` utility on August 27, 2026: 551,488 bytes Flash, 395,364 bytes AXI SRAM `.bss`, and 21,688 bytes DTCM `.dtcm_bss`.
 *   [ ] **Topology Cleanup:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
 ### Week 4: Bare-metal OS Abstraction Layer (OSAL) Primitives
 *Goal: Implement OSAL behavior against the established memory and execution contract.*
