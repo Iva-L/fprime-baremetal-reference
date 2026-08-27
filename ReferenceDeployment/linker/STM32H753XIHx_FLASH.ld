@@ -214,6 +214,20 @@ SECTIONS
   PROVIDE( __arm32_tls_tcb_offset = MAX(8, __tls_align) );
   PROVIDE( __arm64_tls_tcb_offset = MAX(16, __tls_align) );
 
+  .dtcm_bss (NOLOAD) : ALIGN(4)
+  {
+    . = ALIGN(4);
+    _sdtcm_bss = .;
+
+    *(.dtcm_bss)
+    *(.dtcm_bss.*)
+    *(.bss._ZN7CdhCore7cmdDispE)
+    *(.bss._ZN12FileHandling5prmDbE)
+
+    . = ALIGN(4);
+    _edtcm_bss = .;
+  } >DTCM_RAM
+
   .bss (NOLOAD) : ALIGN(4)
   {
     *(.bss)
@@ -229,18 +243,6 @@ SECTIONS
 
   PROVIDE( __bss_start = __tbss_start );
   PROVIDE( __bss_size = __bss_end - __bss_start );
-
-  .dtcm_bss (NOLOAD) : ALIGN(4)
-  {
-    . = ALIGN(4);
-    _sdtcm_bss = .;
-
-    *(.dtcm_bss)
-    *(.dtcm_bss.*)
-
-    . = ALIGN(4);
-    _edtcm_bss = .;
-  } >DTCM_RAM
 
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack (NOLOAD) :
