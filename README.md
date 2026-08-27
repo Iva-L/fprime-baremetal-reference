@@ -27,7 +27,15 @@ executive `main()`, and STM32 USART1 DMA driver.
 
 The CubeMX hardware foundation is now integrated under `lib/fprime-stm32/`. This includes the STM32H753 CMSIS device headers, selected HAL drivers, the 25 MHz HSE clock configuration, MSP initialization, interrupt handlers, GPIO/DMA/TIM/USART support, startup assembly, and the deployment linker script.
 
-The project generates and compiles the migrated hardware sources and FPP boundaries. The final STM32 image is not yet linkable because the current ReferenceDeployment exceeds the configured AXI SRAM region by approximately 149 KiB. The next phase is therefore memory and framework tailoring: reduce the reference topology, tune queues/stacks/buffers, and distribute linker sections before implementing the remaining bare-metal OSAL behavior.
+The project generates and compiles the migrated hardware sources and FPP boundaries. The STM32 `ReferenceDeployment` now links with the memory regions explicitly named `DTCM_RAM` (128 KiB), `AXI_SRAM` (512 KiB), and `FLASH` (2 MiB). The linker script also defines an aligned, `NOLOAD` `.dtcm_bss` section with `_sdtcm_bss` and `_edtcm_bss` boundary symbols; it is currently empty until framework state variables are assigned to it.
+
+The verified STM32 deployment target is:
+
+```shell
+ninja -C build-fprime-stm32h7 ReferenceDeployment
+```
+
+The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x20000000` in DTCM. Heap and stack remain in DTCM. The next phase is to add compiler placement attributes for CPU-only framework state while keeping USART1 DMA buffers in DMA-accessible AXI SRAM.
 
 The development order has been intentionally revised so memory configuration precedes OSAL implementation. This establishes the target's actual resource contract before timing, task, queue, and synchronization primitives are finalized. The functional USART1 DMA adapter for PB14/PB15 and the cyclic-executive `main()` remain pending.
 

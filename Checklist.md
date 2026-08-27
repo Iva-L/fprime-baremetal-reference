@@ -62,11 +62,13 @@ The schedule is intentionally ordered from the least risky and most foundational
 
 ### Week 3: Framework Tailoring & Memory Configuration
 *Goal: Establish the memory contract and reduce the F´ deployment to a viable STM32H753 image before OSAL work.*
-*   [ ] **Reduce ReferenceDeployment footprint:** Remove or defer host-oriented subtopologies and unused services.
-*   [ ] **Tune `FpConfig.h`:** Reduce queue, stack, telemetry, and buffer defaults for the bare-metal target.
-*   [ ] **Map linker sections:** Distribute `.data` and `.bss` across DTCM, AXI SRAM, D2 SRAM, and D3 SRAM deliberately.
-*   [ ] **Run sizing metrics:** Use `baremetal-size` and the linker map to track memory margins.
-
+*   [x] **Reduce ReferenceDeployment footprint:** Remove or defer host-oriented subtopologies and unused services.
+*   [x] **Tune `FpConfig.h`:** Reduce queue, stack, telemetry, and buffer defaults for the bare-metal target.
+*   [x] **Linker Script SegmentationMap linker sections:** Distribute `.data` and `.bss` across DTCM, AXI SRAM, D2 SRAM, and D3 SRAM deliberately.
+*   [ ] **Linker Script Segmentation:** Distribute static allocations so that non-DMA variables are routed to DTCM, leaving AXI SRAM open for DMA communication buffers.
+* [ ] **Enforce the Zero Dynamic Memory Contract:** Enforce strict JPL flight software standards by blocking standard C++ heap allocations after initialization.
+* [ ] **Profiling & Sizing Validation:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
+* [ ] **Topology Cleanup:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
 ### Week 4: Bare-metal OS Abstraction Layer (OSAL) Primitives
 *Goal: Implement OSAL behavior against the established memory and execution contract.*
 *   [ ] **Deconstruct `Os` Library:** Map the standard `Os` namespace interface to the bare-metal implementation.
