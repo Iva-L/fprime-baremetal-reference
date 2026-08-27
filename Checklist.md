@@ -16,23 +16,17 @@
 *   [x] CubeMX CMSIS/HAL migration, clock code, MSP, interrupts, startup assembly, and linker integration are present.
 *   [x] `lib/fprime-stm32` is registered as a reusable STM32 HAL library.
 *   [x] STM32 FPP timer and UART boundaries are generated and compile.
+*   [x]  Tailor the framework and memory map before implementing OSAL primitives.
+*   [x] Board startup and linker script for STM32H753 memory layout.
 
 *What remains:*
-*   [ ] Tailor the framework and memory map before implementing OSAL primitives.
-*   [ ] Board startup and linker script for STM32H753 memory layout.
+
 *   [ ] Cyclic-executive `main()` dispatch loop and hardware init.
 *   [ ] GPIO/UART configuration for LED1/LED3 and USART1 PB14/PB15.
 *   [ ] DMA-backed USART1 ground communication using the byte-stream model.
 *   [ ] Full application topology and hardware-aware component integration.
 
-## Schedule Pathway Assessment
-This is the right high-level pathway for this project.
-
-The schedule is intentionally ordered from the least risky and most foundational tasks to the hardware-specific integration tasks. It follows the same pattern used in the F´ bare-metal reference work: establish the toolchain, confirm the build system, then add the platform-specific linker/startup layer, and only after that connect drivers and the application topology. This reduces the chance of debugging hardware issues before the framework is already known to build cleanly in cross-compilation mode.
-
----
-
-## eek-by-Week Schedule & Task Checklist
+## Week-by-Week Schedule & Task Checklist
 
 ### Week 1: Board Bring-up & IT Onboarding
 *Goal: Initialize host development environments, complete mandatory security training, and verify basic hardware operation.*
@@ -65,10 +59,11 @@ The schedule is intentionally ordered from the least risky and most foundational
 *   [x] **Reduce ReferenceDeployment footprint:** Remove or defer host-oriented subtopologies and unused services.
 *   [x] **Tune `FpConfig.h`:** Reduce queue, stack, telemetry, and buffer defaults for the bare-metal target.
 *   [x] **Linker Script SegmentationMap linker sections:** Distribute `.data` and `.bss` across DTCM, AXI SRAM, D2 SRAM, and D3 SRAM deliberately.
-*   [ ] **Linker Script Segmentation:** Distribute static allocations so that non-DMA variables are routed to DTCM, leaving AXI SRAM open for DMA communication buffers.
-* [ ] **Enforce the Zero Dynamic Memory Contract:** Enforce strict JPL flight software standards by blocking standard C++ heap allocations after initialization.
-* [ ] **Profiling & Sizing Validation:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
-* [ ] **Topology Cleanup:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
+*   [x] **Linker Script Segmentation:** Distribute static allocations so that non-DMA variables are routed to DTCM, leaving AXI SRAM open for DMA communication buffers.
+*   [x] **Section Zero-Initialization:** Clear `_sdtcm_bss` through `_edtcm_bss` in `Reset_Handler` before C++ constructors run.
+*   [ ] **Enforce the Zero Dynamic Memory Contract:** Enforce JPL flight software standards by blocking standard C++ heap allocations after initialization.
+*   [ ] **Profiling & Sizing Validation:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
+*   [ ] **Topology Cleanup:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
 ### Week 4: Bare-metal OS Abstraction Layer (OSAL) Primitives
 *Goal: Implement OSAL behavior against the established memory and execution contract.*
 *   [ ] **Deconstruct `Os` Library:** Map the standard `Os` namespace interface to the bare-metal implementation.

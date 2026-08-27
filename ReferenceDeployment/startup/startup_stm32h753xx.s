@@ -95,6 +95,19 @@ LoopFillZerobss:
   cmp r2, r4
   bcc FillZerobss
 
+  ldr r2, =_sdtcm_bss
+  ldr r4, =_edtcm_bss
+  movs r3, #0
+  b LoopFillZeroDtcmBss
+
+FillZeroDtcmBss:
+  str r3, [r2]
+  adds r2, r2, #4
+
+LoopFillZeroDtcmBss:
+  cmp r2, r4
+  bcc FillZeroDtcmBss
+
 /* Call static constructors */
     bl __libc_init_array
 /* Call the application's entry point.*/
@@ -753,5 +766,4 @@ g_pfnVectors:
 
    .weak      WAKEUP_PIN_IRQHandler
    .thumb_set WAKEUP_PIN_IRQHandler,Default_Handler
-
 
