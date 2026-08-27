@@ -5,18 +5,13 @@
 // ======================================================================
 // Provides access to autocoded functions
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
+#include <ReferenceDeployment/BootstrapAllocator.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ReferenceDeployment/Top/ReferenceDeploymentPacketsAc.hpp>
-
-// Necessary project-specified types
-#include <Fw/Types/MallocAllocator.hpp>
 
 // Public functions for use in main program are namespaced with deployment module ReferenceDeployment
 // This is also the namespace where the topology components are instantiated by FPP.
 namespace ReferenceDeployment {
-
-// Instantiate a malloc allocator for cmdSeq buffer allocation
-Fw::MallocAllocator mallocator;
 
 // Rate group timing: base clock interval and divisors are coupled to rate group names
 const Fw::TimeInterval rateGroupInterval(1, 0);  // 1Hz base clock
@@ -49,7 +44,7 @@ void configureTopology() {
     rateGroup_0_25Hz.configure(rateGroup_0_25HzContext);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
+    cmdSeq.allocateBuffer(0, getBootstrapAllocator(), 5 * 1024);
 
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
@@ -93,7 +88,7 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
 
     // Resource deallocation
-    cmdSeq.deallocateBuffer(mallocator);
+    cmdSeq.deallocateBuffer(getBootstrapAllocator());
 
     tearDownComponents(state);
     deinitComponents(state);

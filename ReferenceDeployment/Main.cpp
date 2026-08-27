@@ -5,6 +5,7 @@
 // ======================================================================
 // Used to access topology functions
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopology.hpp>
+#include <ReferenceDeployment/BootstrapAllocator.hpp>
 // OSAL initialization
 #include <Os/Os.hpp>
 // Used for signal handling shutdown
@@ -89,6 +90,7 @@ int main(int argc, char* argv[]) {
 
     // Setup, cycle, and teardown topology
     ReferenceDeployment::setupTopology(inputs);
+    ReferenceDeployment::lockBootstrapAllocator();
     ReferenceDeployment::startRateGroups();
     ReferenceDeployment::teardownTopology(inputs);
     Fw::Logger::log("Exiting...\n");

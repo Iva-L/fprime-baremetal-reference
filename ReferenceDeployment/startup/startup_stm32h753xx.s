@@ -108,6 +108,9 @@ LoopFillZeroDtcmBss:
   cmp r2, r4
   bcc FillZeroDtcmBss
 
+/* Register the fixed allocator before any C++ constructor can call new. */
+  bl ReferenceDeployment_registerBootstrapAllocator
+
 /* Call static constructors */
     bl __libc_init_array
 /* Call the application's entry point.*/
@@ -766,4 +769,3 @@ g_pfnVectors:
 
    .weak      WAKEUP_PIN_IRQHandler
    .thumb_set WAKEUP_PIN_IRQHandler,Default_Handler
-

@@ -35,7 +35,9 @@ The verified STM32 deployment target is:
 ninja -C build-fprime-stm32h7 ReferenceDeployment
 ```
 
-The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x20000000` in DTCM. Heap and stack remain in DTCM. The next phase is to add compiler placement attributes for CPU-only framework state while keeping USART1 DMA buffers in DMA-accessible AXI SRAM.
+The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x20000000` in DTCM. `Svc::CommandDispatcher` and `Svc::PrmDb` state are routed to DTCM, while the 16 KiB fixed bootstrap allocation pool remains in AXI SRAM for DMA accessibility. Heap and stack remain in DTCM.
+
+The deployment depends on `Os_Baremetal_OverrideNewDelete`. Its global C++ `new` and `delete` overrides are registered before static constructors execute, then route allocations through the fixed bootstrap pool. Allocation is locked after topology initialization, causing a post-initialization allocation request to trigger an F´ assertion before cyclic execution begins.
 
 The development order has been intentionally revised so memory configuration precedes OSAL implementation. This establishes the target's actual resource contract before timing, task, queue, and synchronization primitives are finalized. The functional USART1 DMA adapter for PB14/PB15 and the cyclic-executive `main()` remain pending.
 

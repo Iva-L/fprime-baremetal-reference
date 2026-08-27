@@ -61,7 +61,7 @@
 *   [x] **Linker Script SegmentationMap linker sections:** Distribute `.data` and `.bss` across DTCM, AXI SRAM, D2 SRAM, and D3 SRAM deliberately.
 *   [x] **Linker Script Segmentation:** Distribute static allocations so that non-DMA variables are routed to DTCM, leaving AXI SRAM open for DMA communication buffers.
 *   [x] **Section Zero-Initialization:** Clear `_sdtcm_bss` through `_edtcm_bss` in `Reset_Handler` before C++ constructors run.
-*   [ ] **Enforce the Zero Dynamic Memory Contract:** Enforce JPL flight software standards by blocking standard C++ heap allocations after initialization.
+*   [x] **Enforce the Zero Dynamic Memory Contract:** Route C++ `new` through a fixed bootstrap pool and lock allocation before cyclic execution.
 *   [ ] **Profiling & Sizing Validation:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
 *   [ ] **Topology Cleanup:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
 ### Week 4: Bare-metal OS Abstraction Layer (OSAL) Primitives
