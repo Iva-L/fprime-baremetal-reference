@@ -63,7 +63,7 @@
 *   [x] **Section Zero-Initialization:** Clear `_sdtcm_bss` through `_edtcm_bss` in `Reset_Handler` before C++ constructors run.
 *   [x] **Enforce the Zero Dynamic Memory Contract:** Route C++ `new` through a fixed bootstrap pool and lock allocation before cyclic execution; wrap `malloc`/`calloc`/`realloc`/`free` via `-Wl,--wrap` so any direct C-level heap call traps with `FW_ASSERT` instead of silently allocating.
 *   [x] **Profiling & Sizing Validation:** Verified exact memory allocations and margins using the modified STM32H7 `baremetal-size` utility on August 27, 2026: 551,488 bytes Flash, 395,364 bytes AXI SRAM `.bss`, and 21,688 bytes DTCM `.dtcm_bss`.
-*   [ ] **Topology Cleanup:** Integrate Kevins's profiling tools to gain exact visibility into which components consume memory.
+*   [x] **Topology Cleanup:** Pruned the `textLogger` and socket-based transport connections to achieve a clean bare-metal topology build.
 ### Week 4: Bare-metal OS Abstraction Layer (OSAL) Primitives
 *Goal: Implement OSAL behavior against the established memory and execution contract.*
 *   [ ] **Deconstruct `Os` Library:** Map the standard `Os` namespace interface to the bare-metal implementation.
@@ -120,3 +120,10 @@
 *   [ ] **Document Porting Architecture:** Write detailed Markdown guides explaining your platform tailoring, OSAL overrides, and DMA driver designs for the repository's `/docs` directory.
 *   [ ] **Prepare Upstream Pull Requests:** Clean your code to align with JPL coding standards and submit pull requests to the upstream `fprime-baremetal` community repository to share your platform abstractions.
 *   [ ] **Final JPL Presentation:** Present the completed **STM32H7 Bare-Metal F´ Reference Project** to the **Flight Software Architecture and Infrastructure Group**, demonstrating automated system execution, test coverage, and memory profiling.
+
+
+### More Stuff to Do
+* Add more drivers (I2C, SPI)
+* Test sensors from the fprime-sensors repo.
+* Add more CI groups to check drivers and getting running on CI in actual HIL.
+* Running YAMCS as a ground data system to command flight software.

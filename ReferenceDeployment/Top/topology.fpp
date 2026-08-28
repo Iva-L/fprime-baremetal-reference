@@ -40,7 +40,6 @@ module ReferenceDeployment {
     command connections instance CdhCore.cmdDisp
     event connections instance CdhCore.events
     telemetry connections instance CdhCore.tlmSend
-    text event connections instance CdhCore.textLogger
     health connections instance CdhCore.$health
     param connections instance FileHandling.prmDb
     time connections instance chronoTime
