@@ -6,16 +6,13 @@
 #define FPRIME_STM32_OS_TASK_HPP
 
 #include <Os/Task.hpp>
+#include <fprime-baremetal/Os/Baremetal/Task.hpp>
 
 namespace Os {
 namespace Stm32 {
 namespace Task {
 
-struct Stm32TaskHandle : public TaskHandle {
-    TaskInterface::taskRoutine m_routine = nullptr;
-    void* m_argument = nullptr;
-    bool m_enabled = false;
-};
+using Stm32TaskHandle = Os::Baremetal::BaremetalTaskHandle;
 
 class Stm32Task final : public TaskInterface {
   public:

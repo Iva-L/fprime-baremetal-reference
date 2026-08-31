@@ -1,98 +1,37 @@
 // ======================================================================
-// \title  Main.cpp
-// \brief main program for the F' application. Intended for CLI-based systems (Linux, macOS)
-//
+// \title Main.cpp
+// \brief Bare-metal cyclic executive entry point. Intended for use with the STM32F4xx series of microcontrollers.
 // ======================================================================
-// Used to access topology functions
-#include <ReferenceDeployment/Top/ReferenceDeploymentTopology.hpp>
 #include <ReferenceDeployment/BootstrapAllocator.hpp>
-// OSAL initialization
+#include <ReferenceDeployment/Top/ReferenceDeploymentTopology.hpp>
+#include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
+
 #include <Os/Os.hpp>
-// Used for signal handling shutdown
-#include <signal.h>
-// Used for command line argument processing
-#include <getopt.h>
-// Used for atoi
-#include <cstdlib>
-// Used for logging to the console
-#include <Fw/Logger/Logger.hpp>
+#include <Os/RawTime.hpp>
+#include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
+#include <main.h>
 
-/**
- * \brief print command line help message
- *
- * This will print a command line help message including the available command line arguments.
- *
- * @param app: name of application
- */
-void print_usage(const char* app) {
-    Fw::Logger::log("Usage: ./%s [options]\n-b\tBaud rate\n-d\tUART Device\n", app);
-}
-
-/**
- * \brief shutdown topology cycling on signal
- *
- * The reference topology allows for a simulated cycling of the rate groups. This simulated cycling needs to be stopped
- * in order for the program to shutdown. This is done via handling signals such that it is performed via Ctrl-C
- *
- * @param signum
- */
-static void signalHandler(int signum) {
-    ReferenceDeployment::stopRateGroups();
-}
-
-/**
- * \brief execute the program
- *
- * This F´ program is designed to run in standard environments (e.g. Linux/macOs running on a laptop). Thus it uses
- * command line inputs to specify how to connect.
- *
- * @param argc: argument count supplied to program
- * @param argv: argument values supplied to program
- * @return: 0 on success, something else on failure
- */
-int main(int argc, char* argv[]) {
-    I32 option = 0;
-    CHAR* uart_device = nullptr;
-    U32 baud_rate = 0;
-
+int main() {
+    HAL_Init();
     Os::init();
+    Os::Baremetal::TaskRunner& taskRunner = Os::Baremetal::TaskRunner::getSingleton();
 
-    // Loop while reading the getopt supplied options
-    while ((option = getopt(argc, argv, "hb:d:")) != -1) {
-        switch (option) {
-            // Handle the -b baud rate argument
-            case 'b':
-                baud_rate = static_cast<U32>(atoi(optarg));
-                break;
-            // Handle the -d device argument
-            case 'd':
-                uart_device = optarg;
-                break;
-            // Cascade intended: help output
-            case 'h':
-            // Cascade intended: help output
-            case '?':
-            // Default case: output help and exit
-            default:
-                print_usage(argv[0]);
-                return (option == 'h') ? 0 : 1;
-        }
-    }
-    // Object for communicating state to the topology
-    ReferenceDeployment::TopologyState inputs;
-    inputs.uartDevice = uart_device;
-    inputs.baudRate = baud_rate;
-
-    // Setup program shutdown via Ctrl-C
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
-    Fw::Logger::log("Hit Ctrl-C to quit\n");
-
-    // Setup, cycle, and teardown topology
+    ReferenceDeployment::TopologyState inputs = {};
     ReferenceDeployment::setupTopology(inputs);
     ReferenceDeployment::lockBootstrapAllocator();
-    ReferenceDeployment::startRateGroups();
-    ReferenceDeployment::teardownTopology(inputs);
-    Fw::Logger::log("Exiting...\n");
-    return 0;
+
+    U32 lastTick = HAL_GetTick();
+    while (true) {
+        const U32 currentTick = HAL_GetTick();
+        if (currentTick != lastTick) {
+            lastTick = currentTick;
+            Os::RawTime cycleStart;
+            (void)cycleStart.now();
+            static_cast<Svc::RateGroupDriverComponentBase&>(ReferenceDeployment::rateGroupDriver)
+                .CycleIn_handlerBase(0, cycleStart);
+        }
+
+        // This runs one non-blocking state-machine step for every registered active component.
+        taskRunner.runAll();
+    }
 }
