@@ -45,3 +45,4 @@ target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
 
 target_link_libraries(FprimeStm32 PUBLIC PlatformStm32h7)
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")

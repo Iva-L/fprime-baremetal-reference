@@ -15,12 +15,12 @@ register_fprime_config(
     CHOOSES_IMPLEMENTATIONS
         Os_Cpu_Baremetal
         Os_Memory_Baremetal
-        Os_Task_Baremetal
+        Os_Task_Stm32
         Os_File_Baremetal_MicroFs
         Os_Console_Stub
-        Os_Mutex_Stub
+        Os_Mutex_Stm32
         Os_Queue_Stub
-        Os_RawTime_Stub
+        Os_RawTime_Stm32
         Os_CountingSemaphore_Stub
         Fw_StringFormat_snprintf
         Fw_StringScan_sscanf
