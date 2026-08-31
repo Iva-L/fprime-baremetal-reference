@@ -10,13 +10,15 @@ F´ (F Prime) is a component-driven framework that enables rapid development and
 ## STM32H7 build
 
 The project uses the GNU Arm Embedded toolchain and the `stm32h7` F´ platform
-for the STM32H753XI-EVAL2 target. The platform selects the cooperative
-`fprime-baremetal` OS implementations and disables POSIX and socket support.
+for the STM32H753XI-EVAL2 target. The platform disables POSIX and socket
+support, selects STM32-specific cooperative Task, critical-section Mutex, and
+HAL-tick RawTime OSAL delegates, and retains `fprime-baremetal` implementations
+for CPU, memory, and MicroFs-backed file services.
 
 ```shell
 source fprime-venv/bin/activate
-fprime-util generate stm32h7 --build-cache build-fprime-stm32h7
-fprime-util build --build-cache build-fprime-stm32h7 -j"$(nproc)"
+fprime-util generate -f
+fprime-util build -j"$(nproc)"
 ```
 
 The current build validates the framework and bare-metal libraries. A
@@ -28,6 +30,14 @@ executive `main()`, and STM32 USART1 DMA driver.
 The CubeMX hardware foundation is now integrated under `lib/fprime-stm32/`. This includes the STM32H753 CMSIS device headers, selected HAL drivers, the 25 MHz HSE clock configuration, MSP initialization, interrupt handlers, GPIO/DMA/TIM/USART support, startup assembly, and the deployment linker script.
 
 The project generates and compiles the migrated hardware sources and FPP boundaries. The STM32 `ReferenceDeployment` now links with the memory regions explicitly named `DTCM_RAM` (128 KiB), `AXI_SRAM` (512 KiB), and `FLASH` (2 MiB). The linker script also defines an aligned, `NOLOAD` `.dtcm_bss` section with `_sdtcm_bss` and `_edtcm_bss` boundary symbols.
+
+`lib/fprime-stm32/Os/` supplies the selected OSAL delegates. `Os::Task` is
+cooperative and creates no thread, `Os::Mutex` preserves and restores the
+Cortex-M7 `PRIMASK` around a bounded critical section, and `Os::RawTime`
+serializes the HAL millisecond tick as seconds and microseconds. These
+delegates compile and link, but the deployment must still explicitly drive
+queued component work from its cyclic-executive main loop; the OSAL does not
+introduce a scheduler or blocking delay service.
 
 The verified STM32 deployment target is:
 
@@ -53,6 +63,6 @@ Memory baseline was verified on August 27, 2026, using the modified `baremetal-s
 
 This confirms that the linker segmentation moved the CPU-only `CdhCore::cmdDisp` (`Svc::CommandDispatcher`) and `FileHandling::prmDb` (`Svc::PrmDb`) state into DTCM, reclaiming approximately 21.6 KiB of DMA-safe AXI SRAM headroom. The static memory contract is enforced by the 16 KiB AXI-SRAM bootstrap pool, post-initialization allocator locking with `FW_ASSERT(!m_locked)`, and GNU linker traps for direct C heap calls.
 
-The development order has been intentionally revised so memory configuration precedes OSAL implementation. This establishes the target's actual resource contract before timing, task, queue, and synchronization primitives are finalized. The functional USART1 DMA adapter for PB14/PB15 and the cyclic-executive `main()` remain pending.
+The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, and RawTime delegation path. The next implementation step is to connect cooperative task dispatch and TIM2-backed time progression in the cyclic-executive `main()`, followed by the functional USART1 DMA adapter for PB14/PB15.
 
 The personal progress checklist can be found in the [Checklist file](Checklist.md).

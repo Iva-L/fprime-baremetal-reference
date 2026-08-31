@@ -4,7 +4,7 @@
 *Primary Mentors:* Kevin Ortega (Mentor), Jeff Levison (Group Lead)
 
 ## Current Status Snapshot
-*Current phase:* **Memory and framework tailoring before OSAL implementation.**
+*Current phase:* **STM32 OSAL delegates implemented; integrating their cooperative behavior into the physical-target cyclic executive.**
 *What is completed:*
 *   [x] Host environment and F´ toolchain baseline are established.
 *   [x] Project repository was created and aligned around the bare-metal F´ pattern.
@@ -16,12 +16,14 @@
 *   [x] CubeMX CMSIS/HAL migration, clock code, MSP, interrupts, startup assembly, and linker integration are present.
 *   [x] `lib/fprime-stm32` is registered as a reusable STM32 HAL library.
 *   [x] STM32 FPP timer and UART boundaries are generated and compile.
-*   [x]  Tailor the framework and memory map before implementing OSAL primitives.
+*   [x] Tailor the framework and memory map before implementing OSAL primitives.
 *   [x] Board startup and linker script for STM32H753 memory layout.
+*   [x] STM32-specific `Os::Task`, `Os::Mutex`, and `Os::RawTime` delegates are registered and selected by the `stm32h7` platform.
+*   [x] STM32H7 cross-build succeeds with POSIX disabled and `Os_Task_Stm32`, `Os_Mutex_Stm32`, and `Os_RawTime_Stm32` linked.
 
 *What remains:*
 
-*   [ ] Cyclic-executive `main()` dispatch loop and hardware init.
+*   [ ] Connect the cooperative `Os::Task`/queued-component dispatch sequence and hardware initialization in the cyclic-executive `main()` loop.
 *   [ ] GPIO/UART configuration for LED1/LED3 and USART1 PB14/PB15.
 *   [ ] DMA-backed USART1 ground communication using the byte-stream model.
 *   [ ] Full application topology and hardware-aware component integration.
@@ -71,10 +73,11 @@
 
 #### Week 4: Bare-metal OS Abstraction Layer (OSAL) Primitives
 *Goal: Implement OSAL behavior against the established memory and execution contract.*
-*   [ ] **Deconstruct `Os` Library:** Map the standard `Os` namespace interface to the bare-metal implementation.
-*   [ ] **Implement Polling Task OSAL:** Map `Os::Task` to bounded execution blocks in the cyclic executive.
-*   [ ] **Implement Interrupt-Safe Mutexes:** Use Cortex-M7 critical sections where required.
-*   [ ] **Configure Custom `Os::Time` Implementation:** Connect the hardware timer to F´ time services.
+*   [x] **Deconstruct `Os` Library:** Map the standard `Os` namespace interface to the bare-metal implementation.
+*   [x] **Implement Cooperative Task OSAL:** Register and select `Os_Task_Stm32`, which creates no thread and reports cooperative execution.
+*   [x] **Implement Interrupt-Safe Mutexes:** Register and select `Os_Mutex_Stm32`, preserving/restoring Cortex-M7 `PRIMASK` for bounded critical sections.
+*   [x] **Configure Custom `Os::RawTime` Implementation:** Register and select `Os_RawTime_Stm32`, using `HAL_GetTick()` and seconds/microseconds serialization.
+*   [ ] **Integrate cyclic dispatch and time validation:** Invoke queued-component/cooperative work from `main()` and validate monotonic timestamps, rollover behavior, and interrupt-mask restoration on hardware.
 
 ---
 
