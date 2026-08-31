@@ -4,7 +4,7 @@
 *Primary Mentors:* Kevin Ortega (Mentor), Jeff Levison (Group Supervisor)
 
 ## Current Status Snapshot
-*Current phase:* **Cyclic-executive main loop and TIM2 microsecond RawTime implemented and linked; hardware bring-up (flash/scope validation) still pending.**
+*Current phase:* **First physical hardware boot achieved. Two boot-blocking bugs (premature `malloc()` before `main()`, and a missing `Os::Queue` delegate) diagnosed via `pyocd` on the real board and fixed; the cyclic executive is confirmed running past `main()` and topology setup with no assertion failures.**
 *What is completed:*
 *   [x] Host environment and F´ toolchain baseline are established.
 *   [x] Project repository was created and aligned around the bare-metal F´ pattern.
@@ -22,10 +22,12 @@
 *   [x] STM32H7 cross-build succeeds with POSIX disabled and `Os_Task_Stm32`, `Os_Mutex_Stm32`, and `Os_RawTime_Stm32` linked.
 *   [x] `ReferenceDeployment/Main.cpp` implements the non-blocking cyclic-executive loop: `HAL_Init()`, topology setup, per-millisecond `RateGroupDriver::CycleIn_handlerBase()` trigger, and `Os::Baremetal::TaskRunner::runAll()` to dispatch every registered active component (`CdhCore::cmdDisp`, `ReferenceDeployment::cmdSeq`) once per loop pass with no threads, delays, or blocking waits.
 *   [x] `Os_RawTime_Stm32` upgraded from millisecond `HAL_GetTick()` resolution to a microsecond-resolution free-running clock backed by TIM2 (1 MHz, 32-bit up-counter), with an interrupt-driven overflow counter and a race-safe double-read 64-bit assembly (`Stm32_GetSystemMicroseconds()`), serialized as seconds/microseconds for F´ time services.
+*   [x] `Os_Queue_Stm32` implemented (single-threaded, interrupt-safe FIFO ring buffer) and selected by the `stm32h7` platform in place of the previously-linked no-op `Os_Queue_Stub`.
+*   [x] First physical boot achieved: diagnosed and fixed a premature libstdc++ `malloc()` call before `main()` (was tripping `FW_ASSERT`/`abort()`/`_exit()`) and the missing `Os::Queue` delegate; verified via `pyocd` that the image now reaches `main()`, completes topology setup, and runs the cyclic loop continuously on the real STM32H753XI-EVAL2 board with no assertion failures.
 
 *What remains:*
 
-*   [ ] Flash the current image and validate on physical hardware: monotonic TIM2-microsecond timestamps, correct overflow/rollover behavior (~71.58 minutes), interrupt-mask restoration under the Mutex delegate, and that the cyclic executive's per-millisecond rate-group trigger and cooperative dispatch behave correctly against real `HAL_GetTick()`/TIM2 timing.
+*   [ ] Continued hardware validation: monotonic TIM2-microsecond timestamps, correct overflow/rollover behavior (~71.58 minutes), interrupt-mask restoration under the Mutex delegate, and that the cyclic executive's per-millisecond rate-group trigger and cooperative dispatch behave correctly over an extended run against real `HAL_GetTick()`/TIM2 timing.
 *   [ ] GPIO/UART configuration for LED1/LED3 and USART1 PB14/PB15.
 *   [ ] DMA-backed USART1 ground communication using the byte-stream model.
 *   [ ] Full application topology and hardware-aware component integration.
@@ -81,6 +83,16 @@
 *   [x] **Configure Custom `Os::RawTime` Implementation:** Register and select `Os_RawTime_Stm32`, initially using `HAL_GetTick()` and seconds/microseconds serialization.
 *   [x] **Integrate cyclic dispatch and time validation:** Invoke queued-component/cooperative work from `main()` via `Os::Baremetal::TaskRunner::runAll()` and trigger `RateGroupDriver::CycleIn_handlerBase()` on each observed millisecond boundary; hardware validation of monotonic timestamps, rollover behavior, and interrupt-mask restoration remains pending a physical flash test.
 *   [x] **Upgrade `Os::RawTime` to microsecond resolution:** Replaced the millisecond `HAL_GetTick()` backing with a TIM2-based free-running 1 MHz counter (`lib/fprime-stm32/src/tim2_clock.cpp`), an interrupt-driven 32-bit overflow counter incremented in `HAL_TIM_PeriodElapsedCallback()`, and a race-safe double-read 64-bit microsecond assembly, still serialized as seconds/microseconds.
+*   [x] **Implement `Os::Queue` OSAL delegate:** Added `lib/fprime-stm32/Os/Queue.{hpp,cpp}` and `DefaultQueue.cpp` — a single-threaded, interrupt-safe (`PRIMASK`-guarded) fixed-depth FIFO ring buffer, backed by storage allocated once from the bootstrap pool during `create()`. Registered via `register_os_implementation(Queue Stm32 FprimeStm32)`; this had been missing entirely, silently falling back to F´'s no-op `Os::Stub::Queue`.
+
+#### Hardware Bring-up: First Boot Crash Diagnosis and Fix (August 31, 2026)
+*Goal: Diagnose and resolve the physical-board startup crash where GDB/pyocd never reached `main()` and instead landed in `_exit.c`.*
+*   [x] **Stood up a hardware debug path without OpenOCD/GDB:** Installed `pyocd` (pip, no sudo required) inside `fprime-venv`, installed the exact `Keil.STM32H7xx_DFP` CMSIS pack to get precise `stm32h753xihx` target support (only generic H723/H743/H750/H7b0 targets ship built-in), and used `pyocd commander` scripted sessions (`-x <scriptfile>`) with breakpoints on `Reset_Handler`/`main`/`__wrap_malloc`/`__wrap_free`/`Fw::defaultSwAssert`/`abort`/`_exit` to trace the real boot sequence on the connected STM32H753XI-EVAL2 board.
+*   [x] **Root-caused Bug #1 — premature `malloc()` before `main()`:** libstdc++'s exception-handling emergency pool (`eh_alloc.cc`, part of `libsupc++`) calls raw C `malloc(1088)` from a global constructor that runs during `__libc_init_array()`, strictly before `main()` and therefore before `ReferenceDeployment::lockBootstrapAllocator()`. The prior `__wrap_malloc` unconditionally `FW_ASSERT`'d on any call, tripping `abort()` → `_exit()` — exactly the "GDB lands in `_exit.c`" symptom originally reported.
+*   [x] **Fixed `ReferenceDeployment/MallocWrappers.cpp`:** `__wrap_malloc` now forwards to the same `BootstrapAllocator` pool already used by `Os_Baremetal_OverrideNewDelete` for `operator new`, permitting this one legitimate toolchain-internal allocation during the pre-lock bootstrap window while still hard-asserting on any post-lock or application-level call.
+*   [x] **Root-caused Bug #2 — `Os::Queue` never implemented for bare-metal:** With Bug #1 fixed, tracing further revealed `Svc::CommandDispatcher::init()`'s `createQueue()` call hit a **new** `FW_ASSERT` (`CommandDispatcherComponentAc.cpp`, `qStat == UNKNOWN_ERROR`). Root cause: `cmake/platform/stm32h7.cmake` explicitly `CHOOSES_IMPLEMENTATIONS Os_Queue_Stub`, so every active/queued component's `Os::Queue::create()` silently failed.
+*   [x] **Fixed by implementing `Os_Queue_Stm32` (see OSAL item above) and updating `cmake/platform/stm32h7.cmake`** to select it instead of `Os_Queue_Stub`.
+*   [x] **Verified live on hardware:** Rebuilt, reflashed via `pyocd flash --format elf`, and re-traced with `pyocd commander`. Execution now reaches `main()` cleanly and the CPU remains in the `Running` state through topology setup and into the cyclic loop for 2.5+ seconds continuously with zero hits on any malloc/assert/abort/exit breakpoint — confirming both bugs are resolved and the cyclic executive is live on the physical STM32H753XI-EVAL2 board.
 
 ---
 

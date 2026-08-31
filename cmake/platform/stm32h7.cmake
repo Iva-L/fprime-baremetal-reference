@@ -19,7 +19,7 @@ register_fprime_config(
         Os_File_Baremetal_MicroFs
         Os_Console_Stub
         Os_Mutex_Stm32
-        Os_Queue_Stub
+        Os_Queue_Stm32
         Os_RawTime_Stm32
         Os_CountingSemaphore_Stub
         Fw_StringFormat_snprintf

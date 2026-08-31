@@ -11,10 +11,10 @@ F´ (F Prime) is a component-driven framework that enables rapid development and
 
 The project uses the GNU Arm Embedded toolchain and the `stm32h7` F´ platform
 for the STM32H753XI-EVAL2 target. The platform disables POSIX and socket
-support, selects STM32-specific cooperative Task, critical-section Mutex, and
-TIM2 microsecond-resolution RawTime OSAL delegates, and retains
-`fprime-baremetal` implementations for CPU, memory, and MicroFs-backed file
-services.
+support, selects STM32-specific cooperative Task, critical-section Mutex,
+interrupt-safe Queue, and TIM2 microsecond-resolution RawTime OSAL delegates,
+and retains `fprime-baremetal` implementations for CPU, memory, and
+MicroFs-backed file services.
 
 ```shell
 source fprime-venv/bin/activate
@@ -22,10 +22,12 @@ fprime-util generate -f
 fprime-util build -j"$(nproc)"
 ```
 
-The current build validates the framework and bare-metal libraries and links
-a complete `ReferenceDeployment` image, including a non-blocking cyclic
-executive `main()`. A flashable, hardware-verified image still requires the
-STM32 USART1 DMA driver and physical bring-up/validation on the board.
+The `ReferenceDeployment` image has been flashed to and verified running on
+the physical STM32H753XI-EVAL2 board: execution reaches `main()`, completes
+topology setup, and runs the non-blocking cyclic executive continuously with
+no assertion failures. A production-ready flight image still requires the
+STM32 USART1 DMA driver and extended hardware validation (timer rollover,
+sustained-run stability).
 
 ## Current migration status
 
@@ -57,7 +59,18 @@ The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x2
 
 The deployment depends on `Os_Baremetal_OverrideNewDelete`. Its global C++ `new` and `delete` overrides are registered before static constructors execute, then route allocations through the fixed bootstrap pool. Allocation is locked after topology initialization, causing a post-initialization allocation request to trigger an F´ assertion before cyclic execution begins.
 
-The C-level heap family is also locked down: `ReferenceDeployment/CMakeLists.txt` passes `-Wl,--wrap=malloc`, `--wrap=calloc`, `--wrap=realloc`, and `--wrap=free`, so every reference to those symbols in the final image (including from newlib internals) resolves to `__wrap_*` implementations in `ReferenceDeployment/MallocWrappers.cpp` instead of the real libc functions. Each wrapper immediately calls `FW_ASSERT(0, ...)`, so any direct C heap call traps at the point of use rather than silently allocating. Verified via `arm-none-eabi-nm`/objdump that `__wrap_malloc` and `__wrap_free` are linked and call `Fw::SwAssert`; `__wrap_calloc`/`__wrap_realloc` are currently unreferenced and therefore garbage-collected by `--gc-sections` (they will be pulled in and enforced automatically the moment any code calls `calloc`/`realloc`).
+The C-level heap family is also locked down: `ReferenceDeployment/CMakeLists.txt` passes `-Wl,--wrap=malloc`, `--wrap=calloc`, `--wrap=realloc`, and `--wrap=free`, so every reference to those symbols in the final image (including from newlib internals) resolves to `__wrap_*` implementations in `ReferenceDeployment/MallocWrappers.cpp` instead of the real libc functions. `__wrap_malloc` forwards to the same bootstrap pool used by `operator new` (see "Hardware bring-up" below for why); `__wrap_calloc`, `__wrap_realloc`, and `__wrap_free` still immediately call `FW_ASSERT(0, ...)`, so any of those direct C heap calls traps at the point of use rather than silently allocating. Verified via `arm-none-eabi-nm`/objdump that `__wrap_malloc` and `__wrap_free` are linked; `__wrap_calloc`/`__wrap_realloc` are currently unreferenced and therefore garbage-collected by `--gc-sections` (they will be pulled in and enforced automatically the moment any code calls `calloc`/`realloc`).
+
+### Hardware bring-up: first boot crash diagnosis and fix (August 31, 2026)
+
+The first flash to the physical STM32H753XI-EVAL2 board did not reach `main()`: GDB/`pyocd` landed in `_exit.c` instead. Since no OpenOCD/GDB toolchain was available in this environment, the board was debugged directly using `pyocd` (installed via `pip`, no root required) with the exact `stm32h753xihx` CMSIS target pack, scripting `pyocd commander` sessions with breakpoints on `Reset_Handler`, `main`, `__wrap_malloc`, `__wrap_free`, `Fw::defaultSwAssert`, `abort`, and `_exit` to trace the real boot sequence.
+
+Two distinct bugs were found and fixed:
+
+1. **Premature `malloc()` before `main()`.** libstdc++'s exception-handling emergency pool (`eh_alloc.cc`, part of `libsupc++`) calls raw C `malloc(1088)` from a global constructor that runs during `__libc_init_array()` — strictly before `main()`, and therefore before `ReferenceDeployment::lockBootstrapAllocator()` is ever called. The prior `__wrap_malloc` unconditionally asserted on any call, so this toolchain-internal allocation tripped `FW_ASSERT` → `abort()` → `_exit()`, exactly matching the reported symptom. Fixed by routing `__wrap_malloc` through the existing `BootstrapAllocator` pool (the same one `OverrideNewDelete` already uses for `operator new`), which is open during the pre-lock bootstrap window and still asserts on any call after `lockBootstrapAllocator()`.
+2. **`Os::Queue` was never implemented for bare-metal.** Only `Task`, `Mutex`, and `RawTime` had STM32 delegates; `cmake/platform/stm32h7.cmake` explicitly selected `Os_Queue_Stub` (F´'s no-op stub, whose `create()` always returns `UNKNOWN_ERROR`), so every active/queued component's queue creation — including `Svc::CommandDispatcher` — hard-faulted via `FW_ASSERT`. Fixed by implementing `lib/fprime-stm32/Os/Queue.{hpp,cpp}` (a single-threaded, `PRIMASK`-guarded, fixed-depth FIFO ring buffer allocated once from the bootstrap pool) and switching the platform config to `Os_Queue_Stm32`.
+
+Both fixes were verified directly on the connected board via `pyocd`: the image now reaches `main()`, completes topology setup (including queue creation), and runs the cyclic executive loop continuously with zero hits on any malloc/assert/abort/exit breakpoint.
 
 ### Sizing and memory baseline
 
