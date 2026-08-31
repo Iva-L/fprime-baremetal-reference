@@ -12,8 +12,9 @@ F´ (F Prime) is a component-driven framework that enables rapid development and
 The project uses the GNU Arm Embedded toolchain and the `stm32h7` F´ platform
 for the STM32H753XI-EVAL2 target. The platform disables POSIX and socket
 support, selects STM32-specific cooperative Task, critical-section Mutex, and
-HAL-tick RawTime OSAL delegates, and retains `fprime-baremetal` implementations
-for CPU, memory, and MicroFs-backed file services.
+TIM2 microsecond-resolution RawTime OSAL delegates, and retains
+`fprime-baremetal` implementations for CPU, memory, and MicroFs-backed file
+services.
 
 ```shell
 source fprime-venv/bin/activate
@@ -21,9 +22,10 @@ fprime-util generate -f
 fprime-util build -j"$(nproc)"
 ```
 
-The current build validates the framework and bare-metal libraries. A
-flashable image still requires the board startup code, linker script, cyclic
-executive `main()`, and STM32 USART1 DMA driver.
+The current build validates the framework and bare-metal libraries and links
+a complete `ReferenceDeployment` image, including a non-blocking cyclic
+executive `main()`. A flashable, hardware-verified image still requires the
+STM32 USART1 DMA driver and physical bring-up/validation on the board.
 
 ## Current migration status
 
@@ -34,10 +36,16 @@ The project generates and compiles the migrated hardware sources and FPP boundar
 `lib/fprime-stm32/Os/` supplies the selected OSAL delegates. `Os::Task` is
 cooperative and creates no thread, `Os::Mutex` preserves and restores the
 Cortex-M7 `PRIMASK` around a bounded critical section, and `Os::RawTime`
-serializes the HAL millisecond tick as seconds and microseconds. These
-delegates compile and link, but the deployment must still explicitly drive
-queued component work from its cyclic-executive main loop; the OSAL does not
-introduce a scheduler or blocking delay service.
+assembles a race-safe 64-bit microsecond count from a free-running TIM2
+timer (1 MHz, 32-bit up-counter) plus an interrupt-driven overflow counter,
+serialized as seconds and microseconds. `ReferenceDeployment/Main.cpp` now
+implements the non-blocking cyclic executive: after `HAL_Init()` and
+`Stm32_Tim2ClockInit()`, the loop triggers `RateGroupDriver::CycleIn_handlerBase()`
+once per observed millisecond boundary and calls
+`Os::Baremetal::TaskRunner::runAll()` every pass, which runs one cooperative
+state-machine step for every registered active component (including
+`CdhCore::cmdDisp` and `ReferenceDeployment::cmdSeq`) with no threads, delays,
+or blocking waits.
 
 The verified STM32 deployment target is:
 
@@ -63,6 +71,6 @@ Memory baseline was verified on August 27, 2026, using the modified `baremetal-s
 
 This confirms that the linker segmentation moved the CPU-only `CdhCore::cmdDisp` (`Svc::CommandDispatcher`) and `FileHandling::prmDb` (`Svc::PrmDb`) state into DTCM, reclaiming approximately 21.6 KiB of DMA-safe AXI SRAM headroom. The static memory contract is enforced by the 16 KiB AXI-SRAM bootstrap pool, post-initialization allocator locking with `FW_ASSERT(!m_locked)`, and GNU linker traps for direct C heap calls.
 
-The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, and RawTime delegation path. The next implementation step is to connect cooperative task dispatch and TIM2-backed time progression in the cyclic-executive `main()`, followed by the functional USART1 DMA adapter for PB14/PB15.
+The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, and RawTime delegation path. The cyclic-executive main loop and a TIM2-backed microsecond RawTime clock are now implemented and linked; the next step is hardware bring-up (flashing and scope/logic-analyzer validation of TIM2 timing, rollover, and interrupt-mask behavior), followed by the functional USART1 DMA adapter for PB14/PB15.
 
 The personal progress checklist can be found in the [Checklist file](Checklist.md).

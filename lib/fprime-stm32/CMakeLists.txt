@@ -6,6 +6,7 @@ set(FPRIME_STM32_HAL_SOURCES
     src/dma.c
     src/gpio.c
     src/tim.c
+    src/tim2_clock.cpp
     src/usart.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c

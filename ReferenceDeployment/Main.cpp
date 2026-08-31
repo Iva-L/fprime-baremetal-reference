@@ -1,6 +1,6 @@
 // ======================================================================
 // \title Main.cpp
-// \brief Bare-metal cyclic executive entry point. Intended for use with the STM32F4xx series of microcontrollers.
+// \brief Bare-metal cyclic executive entry point. Intended for use with the STM32H7 series of microcontrollers.
 // ======================================================================
 #include <ReferenceDeployment/BootstrapAllocator.hpp>
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopology.hpp>
@@ -10,9 +10,11 @@
 #include <Os/RawTime.hpp>
 #include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
 #include <main.h>
+#include <tim2_clock.h>
 
 int main() {
     HAL_Init();
+    Stm32_Tim2ClockInit();
     Os::init();
     Os::Baremetal::TaskRunner& taskRunner = Os::Baremetal::TaskRunner::getSingleton();
 

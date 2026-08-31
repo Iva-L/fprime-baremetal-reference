@@ -1,18 +1,21 @@
 // ======================================================================
 // \title Os/RawTime.hpp
-// \brief STM32H7 HAL-tick implementation of Os::RawTime
+// \brief STM32H7 TIM2 microsecond-resolution implementation of Os::RawTime
 // ======================================================================
 #ifndef FPRIME_STM32_OS_RAWTIME_HPP
 #define FPRIME_STM32_OS_RAWTIME_HPP
 
 #include <Os/RawTime.hpp>
+#include <cstdint>
 
 namespace Os {
 namespace Stm32 {
 namespace RawTime {
 
 struct Stm32RawTimeHandle : public RawTimeHandle {
-    U32 m_milliseconds = 0;
+    //! Microseconds elapsed since Stm32_Tim2ClockInit() was called, assembled from the free-running
+    //! TIM2 counter (1 MHz) and its 32-bit overflow counter. See tim2_clock.h.
+    std::uint64_t m_microseconds = 0;
 };
 
 class Stm32RawTime final : public RawTimeInterface {

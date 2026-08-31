@@ -1,10 +1,10 @@
 #  F Prime Baremetal Reference Project
 *Target Hardware:* **STM32H753XI-EVAL2** (ARM Cortex-M7, 2MB Flash, 1MB SRAM)
 *Execution Model:* **Pure Bare-Metal Cyclic Executive (Single-Threaded Polling Loop)**
-*Primary Mentors:* Kevin Ortega (Mentor), Jeff Levison (Group Lead)
+*Primary Mentors:* Kevin Ortega (Mentor), Jeff Levison (Group Supervisor)
 
 ## Current Status Snapshot
-*Current phase:* **STM32 OSAL delegates implemented; integrating their cooperative behavior into the physical-target cyclic executive.**
+*Current phase:* **Cyclic-executive main loop and TIM2 microsecond RawTime implemented and linked; hardware bring-up (flash/scope validation) still pending.**
 *What is completed:*
 *   [x] Host environment and F´ toolchain baseline are established.
 *   [x] Project repository was created and aligned around the bare-metal F´ pattern.
@@ -20,10 +20,12 @@
 *   [x] Board startup and linker script for STM32H753 memory layout.
 *   [x] STM32-specific `Os::Task`, `Os::Mutex`, and `Os::RawTime` delegates are registered and selected by the `stm32h7` platform.
 *   [x] STM32H7 cross-build succeeds with POSIX disabled and `Os_Task_Stm32`, `Os_Mutex_Stm32`, and `Os_RawTime_Stm32` linked.
+*   [x] `ReferenceDeployment/Main.cpp` implements the non-blocking cyclic-executive loop: `HAL_Init()`, topology setup, per-millisecond `RateGroupDriver::CycleIn_handlerBase()` trigger, and `Os::Baremetal::TaskRunner::runAll()` to dispatch every registered active component (`CdhCore::cmdDisp`, `ReferenceDeployment::cmdSeq`) once per loop pass with no threads, delays, or blocking waits.
+*   [x] `Os_RawTime_Stm32` upgraded from millisecond `HAL_GetTick()` resolution to a microsecond-resolution free-running clock backed by TIM2 (1 MHz, 32-bit up-counter), with an interrupt-driven overflow counter and a race-safe double-read 64-bit assembly (`Stm32_GetSystemMicroseconds()`), serialized as seconds/microseconds for F´ time services.
 
 *What remains:*
 
-*   [ ] Connect the cooperative `Os::Task`/queued-component dispatch sequence and hardware initialization in the cyclic-executive `main()` loop.
+*   [ ] Flash the current image and validate on physical hardware: monotonic TIM2-microsecond timestamps, correct overflow/rollover behavior (~71.58 minutes), interrupt-mask restoration under the Mutex delegate, and that the cyclic executive's per-millisecond rate-group trigger and cooperative dispatch behave correctly against real `HAL_GetTick()`/TIM2 timing.
 *   [ ] GPIO/UART configuration for LED1/LED3 and USART1 PB14/PB15.
 *   [ ] DMA-backed USART1 ground communication using the byte-stream model.
 *   [ ] Full application topology and hardware-aware component integration.
@@ -76,8 +78,9 @@
 *   [x] **Deconstruct `Os` Library:** Map the standard `Os` namespace interface to the bare-metal implementation.
 *   [x] **Implement Cooperative Task OSAL:** Register and select `Os_Task_Stm32`, which creates no thread and reports cooperative execution.
 *   [x] **Implement Interrupt-Safe Mutexes:** Register and select `Os_Mutex_Stm32`, preserving/restoring Cortex-M7 `PRIMASK` for bounded critical sections.
-*   [x] **Configure Custom `Os::RawTime` Implementation:** Register and select `Os_RawTime_Stm32`, using `HAL_GetTick()` and seconds/microseconds serialization.
-*   [ ] **Integrate cyclic dispatch and time validation:** Invoke queued-component/cooperative work from `main()` and validate monotonic timestamps, rollover behavior, and interrupt-mask restoration on hardware.
+*   [x] **Configure Custom `Os::RawTime` Implementation:** Register and select `Os_RawTime_Stm32`, initially using `HAL_GetTick()` and seconds/microseconds serialization.
+*   [x] **Integrate cyclic dispatch and time validation:** Invoke queued-component/cooperative work from `main()` via `Os::Baremetal::TaskRunner::runAll()` and trigger `RateGroupDriver::CycleIn_handlerBase()` on each observed millisecond boundary; hardware validation of monotonic timestamps, rollover behavior, and interrupt-mask restoration remains pending a physical flash test.
+*   [x] **Upgrade `Os::RawTime` to microsecond resolution:** Replaced the millisecond `HAL_GetTick()` backing with a TIM2-based free-running 1 MHz counter (`lib/fprime-stm32/src/tim2_clock.cpp`), an interrupt-driven 32-bit overflow counter incremented in `HAL_TIM_PeriodElapsedCallback()`, and a race-safe double-read 64-bit microsecond assembly, still serialized as seconds/microseconds.
 
 ---
 
