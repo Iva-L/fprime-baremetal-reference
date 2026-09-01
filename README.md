@@ -25,9 +25,12 @@ fprime-util build -j"$(nproc)"
 The `ReferenceDeployment` image has been flashed to and verified running on
 the physical STM32H753XI-EVAL2 board: execution reaches `main()`, completes
 topology setup, and runs the non-blocking cyclic executive continuously with
-no assertion failures. A production-ready flight image still requires the
-STM32 USART1 DMA driver and extended hardware validation (timer rollover,
-sustained-run stability).
+no assertion failures, with the physical LED confirmed toggling via a live
+GDB register poll. A production-ready flight image still requires the
+STM32 USART1 DMA driver, extended hardware validation (timer rollover,
+sustained-run stability), and revisiting the AXI SRAM memory budget (see
+"Hardware bring-up" below — margin is now thin after a bootstrap-allocator
+pool increase).
 
 ## Current migration status
 
@@ -55,7 +58,7 @@ The verified STM32 deployment target is:
 ninja -C build-fprime-stm32h7 ReferenceDeployment
 ```
 
-The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x20000000` in DTCM. `Svc::CommandDispatcher` and `Svc::PrmDb` state are routed to DTCM, while the 16 KiB fixed bootstrap allocation pool remains in AXI SRAM for DMA accessibility. Heap and stack remain in DTCM.
+The linker map places `.bss` at `0x240006e8` in AXI SRAM and `.dtcm_bss` at `0x20000000` in DTCM. `Svc::CommandDispatcher` and `Svc::PrmDb` state are routed to DTCM, while the bootstrap allocation pool (see "Hardware bring-up" below for its current 96 KiB size) remains in AXI SRAM for DMA accessibility. Heap and stack remain in DTCM.
 
 The deployment depends on `Os_Baremetal_OverrideNewDelete`. Its global C++ `new` and `delete` overrides are registered before static constructors execute, then route allocations through the fixed bootstrap pool. Allocation is locked after topology initialization, causing a post-initialization allocation request to trigger an F´ assertion before cyclic execution begins.
 
@@ -72,6 +75,26 @@ Two distinct bugs were found and fixed:
 
 Both fixes were verified directly on the connected board via `pyocd`: the image now reaches `main()`, completes topology setup (including queue creation), and runs the cyclic executive loop continuously with zero hits on any malloc/assert/abort/exit breakpoint.
 
+### Hardware bring-up: ISR linking, bootstrap pool sizing, and time-source fixes (September 1, 2026)
+
+A simplified LED-blinker test build (`Main.cpp` with `setupTopology()` commented out) ran for a while past `HAL_GetTick()` and then landed in `Default_Handler`'s infinite loop; re-enabling `setupTopology()` initially crashed even earlier. Live ST-LINK/GDB hardware debugging (`ST-LINK_gdbserver --persistent` + `arm-none-eabi-gdb`) uncovered four distinct bugs:
+
+1. **Real ISR handlers were silently discarded by the linker.** `nm -A` showed `SysTick_Handler`, `HardFault_Handler`, `NMI_Handler`, `DMA1_Stream0/1_IRQHandler`, and `WWDG_IRQHandler` all sharing the same address as `Default_Handler` (all weak). GNU `ld` only pulls an `.o` out of a static archive when something already linked has an *undefined* reference into it; since the startup file (linked directly, not archived) already supplies a weak `Default_Handler` alias for every vector, `stm32h7xx_it.c.o`'s real, strong handlers inside `libFprimeStm32.a` were never extracted. Fixed by moving `stm32h7xx_it.c` out of the archived library and into `register_fprime_deployment(SOURCES ...)`, so it links directly like `Main.cpp`. A latent duplicate `TIM2_IRQHandler` definition in `Main.cpp` was also removed to avoid a symbol clash once the archive issue was fixed.
+2. **A recursive fatal-assert loop from skipping `setupTopology()`.** With `setupTopology()` commented out for the LED-only test, `Svc::EventManager`'s internal queue was never created, so any assertion (including the fatal-adapter's own attempt to log the assertion as an event) recursed back into the same uninitialized queue until `abort()`. Fixed by re-enabling `setupTopology()`.
+3. **Bootstrap allocator pool exhaustion.** Re-enabling `setupTopology()` revealed the fixed 16 KiB `BootstrapAllocator` pool was too small for the full topology's queue/buffer allocations (`ComQueue`, `FileDownlink`, etc.). Fixed by raising `STATIC_HEAP_POOL_SIZE` to 96 KiB.
+4. **`Svc::ChronoTime` relies on an unimplemented clock.** `std::chrono::system_clock::now()` has no real-time-clock backing on bare-metal newlib and returned a garbage timestamp, tripping `Fw::Time::set()`'s range assertion. Fixed by swapping `chronoTime: Svc.ChronoTime` for `osTime: Svc.OsTime` in the topology, which is driven by the project's own TIM2-backed `Os::RawTime` delegate.
+
+All four fixes were verified live on hardware: the board runs the cyclic executive continuously with zero hits on `_exit`/`abort`/`HardFault_Handler`/`FatalReceive_handler` breakpoints, and repeated GDB reads of `GPIOF_ODR` (`0x58021414`) show bit 10 toggling between set and clear, confirming the LED physically blinks with the full `ReferenceDeployment` topology active. Note that the AXI SRAM `.bss` margin is now thin (~9%) after the bootstrap-pool increase; the memory-tuning plan for `config/FpConfig.h` queue depths/serialization sizes should be revisited before adding further components.
+
+### Hardware bring-up: MicroFs initialization and TaskRunner dispatch-table corruption fixes (September 2, 2026)
+
+Uncommenting `taskRunner.runAll();` in `Main.cpp` — the step that begins actually dispatching every registered active component's message queue rather than just ticking the rate-group driver — surfaced two more bugs, both diagnosed via the same live ST-LINK/GDB workflow:
+
+1. **`Os::Baremetal::MicroFs` was never initialized.** A `bt full` showed `Svc::SystemResources::PhysMem()` (invoked periodically once `rateGroup_1Hz` began being dispatched) calling `Os::FileSystem::getFreeSpace("/")`, which hard-asserts because `Os::Baremetal::MicroFs::MicroFsInit()` had never been called anywhere in the project — nothing in the framework calls it automatically. Fixed by adding a `MicroFsInit()` call (a conservative static 2-bin config: 2×1024-byte files + 1×4096-byte file) at the top of `configureTopology()` in `ReferenceDeployment/Top/ReferenceDeploymentTopology.cpp`, drawing its storage from the existing 96 KiB bootstrap pool (only ~88 bytes of new static `.bss` for the config struct itself). Note: `MicroFs` only recognizes `/bin<N>/file<M>`-style paths, so the literal paths used by `Svc::PrmDb`/`FileDownlink`/`FileUplink`/`DpCatalog` will currently resolve to "file not found" rather than crash — real parameter/file persistence is a follow-up item.
+2. **A real bug in the `fprime-baremetal` framework: `Os::Baremetal::TaskRunner::addTask()`'s insertion sort was broken.** After fixing #1, a *different* FATAL appeared: `Svc::TlmChanComponentBase::Run_handlerBase` asserting `qStatus == Os::Queue::OP_OK` with `FULL` — `CdhCore::tlmSend`'s own dispatch queue was never being drained. A GDB dump of `TaskRunner::m_task_table` showed clear duplicate entries (several components appearing twice) while several others — including `CdhCore::tlmSend` — were completely absent. The existing `addTask()` code wrote the new task directly into the tail slot and *then* ran a separate swap-based "sort" loop starting from index 0 with the same task re-used as the sort element — a broken pattern that both duplicates and drops table entries. A standalone Python simulation of the exact algorithm, fed the project's real task registration order and priorities, reproduced the identical corrupted table seen on hardware (7 of 17 active components dropped), conclusively proving the root cause: those components' internal queues were never dispatched, so any message sent to them (like the periodic `RUN_SCHED` sent to `tlmSend`) simply piled up until it overflowed. Fixed by replacing the broken logic in `lib/fprime-baremetal/fprime-baremetal/Os/TaskRunner/TaskRunner.cpp` with a correct O(n) shift-based insertion sort; re-running the simulation against the corrected algorithm confirmed all 17 tasks are retained exactly once and properly sorted by descending priority.
+
+Both fixes were verified live on hardware with `taskRunner.runAll()` fully enabled: the board ran continuously for 2+ minutes with zero hits on `_exit`/`abort`/`HardFault_Handler`/`FatalReceive_handler` breakpoints (confirmed via repeated `interrupt`/`bt`/`detach` polling cycles showing normal application code, e.g. `Svc::ActiveRateGroup::CycleIn_handler`), and repeated `GPIOF_ODR` reads confirmed the LED still toggling (`0x400` ↔ `0x0`) under the full active-component dispatch load — the entire `ReferenceDeployment` topology, including every active component's cooperative dispatch, now runs cleanly end-to-end on the physical board.
+
 ### Sizing and memory baseline
 
 Memory baseline was verified on August 27, 2026, using the modified `baremetal-size` utility for the STM32H753XI platform:
@@ -82,8 +105,17 @@ Memory baseline was verified on August 27, 2026, using the modified `baremetal-s
 | AXI SRAM (`.bss`) | 395,364 bytes | 512 KiB | 25.1% |
 | DTCM RAM (`.dtcm_bss`) | 21,688 bytes | 128 KiB | 83.1% |
 
-This confirms that the linker segmentation moved the CPU-only `CdhCore::cmdDisp` (`Svc::CommandDispatcher`) and `FileHandling::prmDb` (`Svc::PrmDb`) state into DTCM, reclaiming approximately 21.6 KiB of DMA-safe AXI SRAM headroom. The static memory contract is enforced by the 16 KiB AXI-SRAM bootstrap pool, post-initialization allocator locking with `FW_ASSERT(!m_locked)`, and GNU linker traps for direct C heap calls.
+This confirms that the linker segmentation moved the CPU-only `CdhCore::cmdDisp` (`Svc::CommandDispatcher`) and `FileHandling::prmDb` (`Svc::PrmDb`) state into DTCM, reclaiming approximately 21.6 KiB of DMA-safe AXI SRAM headroom. The static memory contract is enforced by the AXI-SRAM bootstrap pool (16 KiB at the time of this baseline; raised to 96 KiB on September 1, 2026 — see "Hardware bring-up" above), post-initialization allocator locking with `FW_ASSERT(!m_locked)`, and GNU linker traps for direct C heap calls.
 
-The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, and RawTime delegation path. The cyclic-executive main loop and a TIM2-backed microsecond RawTime clock are now implemented and linked; the next step is hardware bring-up (flashing and scope/logic-analyzer validation of TIM2 timing, rollover, and interrupt-mask behavior), followed by the functional USART1 DMA adapter for PB14/PB15.
+Updated `arm-none-eabi-size` totals after the September 2, 2026 bring-up fixes (full `ReferenceDeployment` topology, `setupTopology()` + `taskRunner.runAll()` both enabled):
+
+| Region | Used | Capacity | Remaining margin |
+|---|---:|---:|---:|
+| Flash (`.text`+`.rodata`+`.data`) | 561,672 bytes (548.5 KiB) | 2,048 KiB | 73.2% |
+| AXI SRAM (`.bss`) | 476,332 bytes | 512 KiB (524,288 bytes) | 9.1% |
+| DTCM RAM (`.dtcm_bss`) | 21,688 bytes | 128 KiB | 83.4% |
+
+
+The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, Queue, and RawTime delegation path. The cyclic-executive main loop, a TIM2-backed microsecond RawTime clock, and a bare-metal `Os::Queue` delegate are now implemented, linked, and confirmed running on the physical board, with the LED physically verified blinking end-to-end — including with every active component's cooperative dispatch fully enabled via `taskRunner.runAll()` (see "Hardware bring-up" above). The next step is trimming the AXI SRAM budget back to a healthier margin (queue-depth/serialization tuning), followed by extended hardware validation (TIM2 rollover, interrupt-mask restoration, and sustained-run stability) and the functional USART1 DMA adapter for PB14/PB15.
 
 The personal progress checklist can be found in the [Checklist file](Checklist.md).
