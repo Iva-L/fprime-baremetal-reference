@@ -14,5 +14,9 @@ register_fprime_config(
         "${CMAKE_CURRENT_LIST_DIR}/FpConstants.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/ComCcsdsConfig.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/DataProductsConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/TlmChanImplCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/CommandDispatcherImplCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/PrmDbImplCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/DpCatalogCfg.hpp"
     INTERFACE
 )
