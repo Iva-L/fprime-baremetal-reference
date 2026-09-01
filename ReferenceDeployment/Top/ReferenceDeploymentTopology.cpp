@@ -6,6 +6,7 @@
 // Provides access to autocoded functions
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
 #include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ReferenceDeployment/Top/ReferenceDeploymentPacketsAc.hpp>
 
@@ -35,6 +36,17 @@ enum TopologyConstants {
  * desired, but is extracted here for clarity.
  */
 void configureTopology() {
+    // Bare-metal MicroFs (RAM-backed) filesystem: must be initialized before any Os::FileSystem/Os::File
+    // call, including Svc::SystemResources' periodic Os::FileSystem::getFreeSpace("/") polling driven by
+    // the rate groups. Without this, Os::Baremetal::MicroFs's s_microFsMem remains null and the first
+    // filesystem access hard-asserts. Sized conservatively against the tight AXI SRAM budget: 2 small
+    // files (1 KiB each) plus 1 medium file (4 KiB) for command-sequence/parameter/data-product staging.
+    static Os::Baremetal::MicroFs::MicroFsConfig microFsConfig;
+    Os::Baremetal::MicroFs::MicroFsSetCfgBins(microFsConfig, 2);
+    Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 0, 1024, 2);
+    Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 1, 4096, 1);
+    Os::Baremetal::MicroFs::MicroFsInit(microFsConfig, 0, getBootstrapAllocator());
+
     // Rate group driver needs a divisor list
     rateGroupDriver.configure(rateGroupDivisorsSet);
 

@@ -22,6 +22,12 @@ register_fprime_deployment(
         "${CMAKE_CURRENT_LIST_DIR}/BootstrapAllocator.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/MallocWrappers.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/startup/startup_stm32h753xx.s"
+        # Compiled directly into the executable (not through the archived
+        # FprimeStm32 static library) so its strong ISR definitions always
+        # override the weak Default_Handler aliases in the startup file --
+        # see the NOTE in lib/fprime-stm32/CMakeLists.txt for the full
+        # static-archive-extraction explanation.
+        "${CMAKE_CURRENT_LIST_DIR}/../lib/fprime-stm32/src/stm32h7xx_it.c"
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
         FprimeStm32

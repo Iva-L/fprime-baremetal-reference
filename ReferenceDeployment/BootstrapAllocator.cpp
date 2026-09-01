@@ -60,7 +60,7 @@ class StrictStaticAllocator final : public Fw::MemAllocator {
     bool m_locked;
 };
 
-constexpr FwSizeType STATIC_HEAP_POOL_SIZE = 16U * 1024U;
+constexpr FwSizeType STATIC_HEAP_POOL_SIZE = 96U * 1024U;
 
 alignas(std::max_align_t) U8 staticHeapPool[STATIC_HEAP_POOL_SIZE];
 alignas(StrictStaticAllocator) U8 staticAllocatorStorage[sizeof(StrictStaticAllocator)];

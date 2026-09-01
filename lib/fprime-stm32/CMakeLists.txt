@@ -1,7 +1,19 @@
 set(FPRIME_STM32_HAL_SOURCES
     src/system_stm32h7xx.c
     src/stm32h7xx_hal_msp.c
-    src/stm32h7xx_it.c
+    # NOTE: src/stm32h7xx_it.c is intentionally NOT compiled into this static
+    # library. GNU ld only extracts an .o from a static archive when something
+    # already linked has an *undefined* reference into it -- but
+    # startup/startup_stm32h753xx.s already provides `.weak` Default_Handler
+    # aliases for every vector table entry (and is linked directly into the
+    # executable, not via an archive), so every vector is "satisfied" before
+    # the linker ever needs to search this archive. That silently discards the
+    # real ISR bodies (SysTick_Handler/HAL_IncTick, HardFault_Handler,
+    # DMA1_Stream0/1_IRQHandler, TIM2_IRQHandler, ...) in favor of the weak
+    # infinite-loop aliases. It is instead compiled directly into the
+    # ReferenceDeployment executable's own sources -- see
+    # ReferenceDeployment/CMakeLists.txt -- so its strong definitions are
+    # always present and correctly override the weak ones.
     src/stm32h7_clock.c
     src/dma.c
     src/gpio.c
