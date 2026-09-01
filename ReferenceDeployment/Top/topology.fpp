@@ -23,7 +23,7 @@ module ReferenceDeployment {
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
-    instance chronoTime
+    instance osTime
     instance rateGroup_1Hz
     instance rateGroup_0_5Hz
     instance rateGroup_0_25Hz
@@ -42,7 +42,7 @@ module ReferenceDeployment {
     telemetry connections instance CdhCore.tlmSend
     health connections instance CdhCore.$health
     param connections instance FileHandling.prmDb
-    time connections instance chronoTime
+    time connections instance osTime
 
   # ----------------------------------------------------------------------
   # Telemetry packets (only used when TlmPacketizer is used)
