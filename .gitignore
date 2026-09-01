@@ -9,9 +9,9 @@ build-fprime-*
 
 # Misc
 /venv/
+/.temp/
 /fprime-venv/
 /.idea/
 /.vscode/
-Checklist.md
 .DS_Store
 *.gcov

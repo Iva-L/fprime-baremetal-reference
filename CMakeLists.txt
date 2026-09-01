@@ -5,6 +5,7 @@
 
 cmake_minimum_required(VERSION 3.24.2)
 project(FprimeBaremetalReference C CXX)
+enable_language(ASM)
 
 ###
 # F' Core Setup
@@ -14,6 +15,12 @@ include("${CMAKE_CURRENT_LIST_DIR}/lib/fprime/cmake/FPrime.cmake")
 # NOTE: register custom targets between these two lines
 fprime_setup_included_code()
 
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/fprime-stm32")
+
+# Register project-level configuration overrides after framework and library
+# configuration modules have been added.
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config")
 
 # This includes project-wide objects
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/FprimeBaremetalReference")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ReferenceDeployment/")

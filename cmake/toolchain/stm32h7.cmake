@@ -17,12 +17,12 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 set(STM32H7_CPU_FLAGS "-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard")
 
 set(CMAKE_C_FLAGS_INIT
-    "${STM32H7_CPU_FLAGS} -ffunction-sections -fdata-sections"
+    "${STM32H7_CPU_FLAGS} -ffunction-sections -fdata-sections -g3 -gdwarf-4"
 )
 set(CMAKE_CXX_FLAGS_INIT
-    "${STM32H7_CPU_FLAGS} -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -include${CMAKE_CURRENT_LIST_DIR}/stm32h7-format-macros.h"
+    "${STM32H7_CPU_FLAGS} -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -g3 -gdwarf-4 -include${CMAKE_CURRENT_LIST_DIR}/stm32h7-format-macros.h"
 )
-set(CMAKE_ASM_FLAGS_INIT "${STM32H7_CPU_FLAGS}")
+set(CMAKE_ASM_FLAGS_INIT "${STM32H7_CPU_FLAGS} -g3 -gdwarf-4")
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
