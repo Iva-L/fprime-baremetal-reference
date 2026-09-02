@@ -14,10 +14,8 @@
 // This is also the namespace where the topology components are instantiated by FPP.
 namespace ReferenceDeployment {
 
-// Rate group timing: base clock interval and divisors are coupled to rate group names
-const Fw::TimeInterval rateGroupInterval(1, 0);  // 1Hz base clock
-Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
-// Divisors: 1Hz, 0.5Hz, 0.25Hz
+Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{100, 0}, {200, 0}, {400, 0}}};
+// Divisors against a 10 ms base clock: 1Hz, 0.5Hz, 0.25Hz
 
 // Context tokens for rate group members (unused, set to zero)
 Svc::ActiveRateGroup::ContextArray rateGroup_1HzContext(0);
@@ -60,6 +58,9 @@ void configureTopology() {
 
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
+
+    const bool comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE);
+    FW_ASSERT(comDriverOpened);
 }
 
 void setupTopology(const TopologyState& state) {

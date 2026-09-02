@@ -9,6 +9,7 @@
 #include <Os/Os.hpp>
 #include <Os/RawTime.hpp>
 #include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
+#include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 #include <main.h>
 #include <tim2_clock.h>
 #include "stm32h7xx_hal.h"
@@ -30,6 +31,10 @@ void Stm32_LedGpioInit() {
 }
 
 int main() {
+    
+    SCB_EnableICache();
+    SCB_EnableDCache();
+
     HAL_Init();
     Stm32_Tim2ClockInit();
     
@@ -43,13 +48,15 @@ int main() {
     ReferenceDeployment::setupTopology(inputs);
     ReferenceDeployment::lockBootstrapAllocator();
 
+    constexpr U32 RATE_GROUP_TICK_MS = 10;
+
     U32 lastTick = HAL_GetTick();
     U32 blinkCounter = 0;
 
     while (true) {
         const U32 currentTick = HAL_GetTick();
-        if (currentTick != lastTick) {
-            const U32 elapsedTicks = currentTick - lastTick;
+        const U32 elapsedTicks = currentTick - lastTick;
+        if (elapsedTicks >= RATE_GROUP_TICK_MS) {
             lastTick = currentTick;
 
             blinkCounter += elapsedTicks;
@@ -66,5 +73,7 @@ int main() {
 
         // Run a cooperative state machine step for each active registered component.
         taskRunner.runAll();
+
+        ReferenceDeployment::comDriver.poll();
     }
 }
