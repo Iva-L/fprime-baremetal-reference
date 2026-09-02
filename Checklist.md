@@ -4,7 +4,7 @@
 *Primary Mentors:* Kevin Ortega (Mentor), Jeff Levison (Group Supervisor)
 
 ## Current Status Snapshot
-*Current phase:* **Physical LED blinker verified end-to-end with the FULL cyclic executive active (`setupTopology()` + `taskRunner.runAll()` both enabled). Two additional bugs surfaced only once every active component's queue began being dispatched — an un-initialized bare-metal RAM filesystem (`Os::Baremetal::MicroFs`) and a broken insertion-sort in `Os::Baremetal::TaskRunner::addTask()` that silently dropped 7 of 17 active components (including `CdhCore::tlmSend`) from the round-robin dispatch table — diagnosed via live ST-LINK/GDB hardware debugging and fixed; the board now runs for 2+ minutes continuously with zero FATAL hits and `GPIOF_ODR` bit 10 confirmed physically toggling.**
+*Current phase:* **Physical LED blinker verified end-to-end with the FULL cyclic executive active (`setupTopology()` + `taskRunner.runAll()` both enabled). Bare-metal filesystem initialization, TaskRunner dispatch-table corruption, and framework-default memory configuration issues have been diagnosed and fixed; the optimized image was flashed successfully and now leaves approximately 57% of AXI SRAM available for the USART1 DMA driver.**
 *What is completed:*
 *   [x] Host environment and F´ toolchain baseline are established.
 *   [x] Project repository was created and aligned around the bare-metal F´ pattern.
@@ -31,10 +31,13 @@
 *   [x] Diagnosed and fixed a null bare-metal filesystem bug: enabling `taskRunner.runAll();` in `Main.cpp` caused `Svc::SystemResources::PhysMem()` (invoked periodically by `rateGroup_1Hz`) to hard-assert in `Os::Baremetal::MicroFs`/`FileSystem.cpp` because `MicroFsInit()` had never been called anywhere in the project. Fixed by adding a `Os::Baremetal::MicroFs::MicroFsInit(...)` call (2-bin config, drawn from the existing bootstrap pool) at the top of `configureTopology()` in `ReferenceDeployment/Top/ReferenceDeploymentTopology.cpp`; `.bss` grew by only ~88 bytes.
 *   [x] Diagnosed and fixed a critical `fprime-baremetal` framework bug in `Os::Baremetal::TaskRunner::addTask()`: its priority-sort insertion loop wrote the new task at the tail slot *and then* ran a separate swap-based "sort" starting from index 0, which silently duplicated some tasks in the round-robin table while completely dropping others. A Python simulation using the project's real registration order/priorities reproduced the exact corrupted table observed on hardware (7 of 17 active components dropped, including `CdhCore::tlmSend`), proving these components' internal dispatch queues were never drained by `taskRunner.runAll()` — explaining the `Svc::TlmChan` `Run_handlerBase` queue-`FULL` assert (`TlmChanComponentAc.cpp:668`). Fixed by replacing the broken swap logic with a correct O(n) shift-based insertion sort in `lib/fprime-baremetal/fprime-baremetal/Os/TaskRunner/TaskRunner.cpp`; re-simulated to confirm all 17 tasks are now retained, unique, and sorted by descending priority.
 *   [x] Verified live on hardware with `taskRunner.runAll()` enabled: the board ran continuously for 2+ minutes with zero hits on `_exit`/`abort`/`HardFault_Handler`/`FatalReceive_handler` breakpoints, and repeated `GPIOF_ODR` reads confirmed the LED still toggling (`0x400` ↔ `0x0`) under the full active-component dispatch load.
+*   [x] Optimized framework memory configuration for the upcoming USART1 DMA driver: added project overrides for `TlmChan`, `CommandDispatcher`, `PrmDb`, and `DpCatalog`; reduced `TLMCHAN_HASH_BUCKETS` from 500 to 128, command dispatch entries from 150 to 64, sequencer entries from 25 to 16, parameter entries from 25 to 8, and data-product file tracking from 127 to 16.
+*   [x] Verified the optimized configuration with `baremetal-size stm32h7`: total `.bss` decreased from 487,524 bytes to 226,988 bytes, while Flash remained approximately 558 KiB; `CdhCore::tlmSend` decreased from 320,872 bytes to 83,000 bytes and remains sized for the current 93 telemetry channels plus headroom.
+*   [x] Flashed the optimized `ReferenceDeployment` image to the physical STM32H753XI-EVAL2 board successfully and confirmed that it uses substantially less RAM while preserving the working bare-metal deployment.
 
 *What remains:*
 
-*   [ ] AXI SRAM margin is now thin (~9%) after the bootstrap pool increase — revisit `config/FpConfig.h` queue depths/serialization buffer sizes (per the earlier memory-tuning plan) before adding new components.
+*   [x] AXI SRAM margin recovered from approximately 9% to approximately 57% after targeted framework configuration overrides; preserve the remaining headroom for USART1 DMA buffers, ring buffers, and future sensor integration.
 *   [ ] `Os::Baremetal::MicroFs`'s strict `/bin<N>/file<M>` path-naming scheme does not match the literal file paths used by `Svc::PrmDb`, `Svc::FileDownlink`/`FileUplink`, or `Svc::DpCatalog` (e.g. `PrmDb.dat`) — these currently resolve to `Status::INVALID` (file-not-found) rather than crashing, but real parameter/file persistence is not yet functional and needs a path-mapping or `MicroFs` naming-convention fix.
 *   [ ] Continued hardware validation: monotonic TIM2-microsecond timestamps, correct overflow/rollover behavior (~71.58 minutes), interrupt-mask restoration under the Mutex delegate, and that the cyclic executive's per-millisecond rate-group trigger and cooperative dispatch behave correctly over an extended run against real `HAL_GetTick()`/TIM2 timing.
 *   [ ] GPIO/UART configuration for LED1/LED3 and USART1 PB14/PB15.
@@ -181,7 +184,8 @@
 *   [ ] **Keep ISR work minimal and interrupt-safe:** Route I2C event/error IRQ handlers only to the HAL IRQ entry points and have completion callbacks set volatile completion/error flags. Consume those flags, issue the F´ completion port, and return `Fw::Buffer` ownership exclusively from a deterministic `poll()`/scheduled context, not from an ISR.
 *   [ ] **Add host-side component tests:** Test address/register encoding, one-request-at-a-time admission, all completion mappings, timeout recovery, and buffer return on every failure path with mocked low-level transfer functions. Build the STM32 target after the FPP model, implementation, and topology-facing API compile.
 *   [ ] **Exit criterion:** On the board, run an I2C address probe or a known-register read 1,000 times at 400 kHz with zero leaked buffers, no main-loop blocking, and explicit telemetry/event evidence for each injected error path.
-
+* [ ] 
+**Test raw sensor:** Test the implementation with a raw I2C sensor.
 #### Week 11: SPI driver and DMA-safe transfer completion
 *Goal: Deliver a reusable SPI passive component and establish the DMA/cache/ownership pattern shared by SPI and future high-rate buses.*
 *   [ ] **Enable the selected STM32H7 SPI instance:** Configure SPI master mode, clock polarity/phase, chip-select GPIO, DMA request/stream, NVIC priority, and the HAL source files in `lib/fprime-stm32`; begin at 1 MHz and raise the clock only after scope or logic-analyzer verification of signal integrity.
@@ -190,6 +194,7 @@
 *   [ ] **Implement deterministic chip-select and recovery behavior:** Assert CS immediately before the transfer, deassert it exactly once on success, HAL error, or watchdog expiry, and abort/reset the SPI/DMA stream before reporting a failed transfer. Never spin waiting for `HAL_SPI_*_DMA()` completion.
 *   [ ] **Integrate driver polling with the cyclic executive:** Call driver `poll()` after ISR completion flags are latched and before dependent application components are dispatched, preserving the repository’s manually dispatched queued-component pattern rather than introducing tasks.
 *   [ ] **Exit criterion:** Complete 10,000 loopback or sensor WHO_AM_I transactions without corruption; capture transfer latency, maximum cyclic-executive iteration time, SPI error count, and AXI/D2 buffer addresses in the bring-up log.
+* [ ] **Test raw sensor:** Test the implementation with a raw SPI sensor.
 
 ### Block 3: Sensor Orchestration and `fprime-sensors` (Weeks 13-14)
 

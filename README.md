@@ -95,6 +95,35 @@ Uncommenting `taskRunner.runAll();` in `Main.cpp` — the step that begins actua
 
 Both fixes were verified live on hardware with `taskRunner.runAll()` fully enabled: the board ran continuously for 2+ minutes with zero hits on `_exit`/`abort`/`HardFault_Handler`/`FatalReceive_handler` breakpoints (confirmed via repeated `interrupt`/`bt`/`detach` polling cycles showing normal application code, e.g. `Svc::ActiveRateGroup::CycleIn_handler`), and repeated `GPIOF_ODR` reads confirmed the LED still toggling (`0x400` ↔ `0x0`) under the full active-component dispatch load — the entire `ReferenceDeployment` topology, including every active component's cooperative dispatch, now runs cleanly end-to-end on the physical board.
 
+### Memory optimization for USART1 DMA integration (September 2, 2026)
+
+After the bootstrap allocator was increased to 96 KiB to support the complete topology, the deployment's AXI SRAM margin was too small for the planned USART1 DMA ground-link driver. `baremetal-size stm32h7` identified `CdhCore::tlmSend` as the dominant consumer: the framework-default `TLMCHAN_HASH_BUCKETS = 500` reserved 320,872 bytes for a deployment containing only 93 telemetry channels.
+
+The project configuration now overrides the relevant framework configuration headers through `config/CMakeLists.txt`:
+
+| Configuration | Previous value | Optimized value | Rationale |
+|---|---:|---:|---|
+| `TLMCHAN_HASH_BUCKETS` | 500 | 128 | Supports 93 current telemetry channels with approximately 37% capacity headroom |
+| `TLMCHAN_NUM_TLM_HASH_SLOTS` | 15 | 41 | Provides a balanced hash table for the current telemetry-producing components |
+| `CMD_DISPATCHER_DISPATCH_TABLE_SIZE` | 150 | 64 | Supports 48 current command opcodes with room for additional driver commands |
+| `CMD_DISPATCHER_SEQUENCER_TABLE_SIZE` | 25 | 16 | Retains bounded command-sequencer capacity for the single-threaded deployment |
+| `PRMDB_NUM_DB_ENTRIES` | 25 | 8 | Provides near-term parameter headroom; no parameters are currently declared |
+| `DP_MAX_FILES` | 127 | 16 | Matches the small MicroFs-backed deployment while retaining file-tracking headroom |
+
+The optimized overrides are implemented in `config/TlmChanImplCfg.hpp`, `config/CommandDispatcherImplCfg.hpp`, `config/PrmDbImplCfg.hpp`, and `config/DpCatalogCfg.hpp`. `config/FpConfig.h` and `config/FpConstants.fpp` already contained the deployment's reduced logging, string, serialization, and communication-buffer settings, so no additional changes were required there.
+
+The optimized image was rebuilt and flashed successfully to the physical STM32H753XI-EVAL2 board. The `baremetal-size stm32h7` results show the following improvement:
+
+| Region | Before optimization | After optimization | Improvement |
+|---|---:|---:|---:|
+| AXI SRAM `.bss` | 487,524 bytes | 226,988 bytes | 260,536 bytes recovered |
+| AXI SRAM usage | 93.0% | 43.3% | Margin increased to approximately 56.7% |
+| DTCM `.dtcm_bss` | 21,032 bytes | 8,584 bytes | 12,448 bytes recovered |
+| Flash image | approximately 559 KiB | approximately 559 KiB | Essentially unchanged |
+| `CdhCore::tlmSend` | 320,872 bytes | approximately 83,000 bytes | approximately 238 KiB recovered |
+
+The deployment therefore has sufficient AXI SRAM headroom for USART1 PB14/PB15 DMA buffers, fixed-size UART ring buffers, and the initial ground-link integration without increasing the bootstrap pool again.
+
 ### Sizing and memory baseline
 
 Memory baseline was verified on August 27, 2026, using the modified `baremetal-size` utility for the STM32H753XI platform:
@@ -107,15 +136,15 @@ Memory baseline was verified on August 27, 2026, using the modified `baremetal-s
 
 This confirms that the linker segmentation moved the CPU-only `CdhCore::cmdDisp` (`Svc::CommandDispatcher`) and `FileHandling::prmDb` (`Svc::PrmDb`) state into DTCM, reclaiming approximately 21.6 KiB of DMA-safe AXI SRAM headroom. The static memory contract is enforced by the AXI-SRAM bootstrap pool (16 KiB at the time of this baseline; raised to 96 KiB on September 1, 2026 — see "Hardware bring-up" above), post-initialization allocator locking with `FW_ASSERT(!m_locked)`, and GNU linker traps for direct C heap calls.
 
-Updated `arm-none-eabi-size` totals after the September 2, 2026 bring-up fixes (full `ReferenceDeployment` topology, `setupTopology()` + `taskRunner.runAll()` both enabled):
+Updated `baremetal-size stm32h7` totals after the September 2, 2026 memory optimization (full `ReferenceDeployment` topology, `setupTopology()` + `taskRunner.runAll()` both enabled):
 
 | Region | Used | Capacity | Remaining margin |
 |---|---:|---:|---:|
-| Flash (`.text`+`.rodata`+`.data`) | 561,672 bytes (548.5 KiB) | 2,048 KiB | 73.2% |
-| AXI SRAM (`.bss`) | 476,332 bytes | 512 KiB (524,288 bytes) | 9.1% |
-| DTCM RAM (`.dtcm_bss`) | 21,688 bytes | 128 KiB | 83.4% |
+| Flash (`.text`+`.rodata`+`.data`) | 560,160 bytes (547.0 KiB) | 2,048 KiB | 73.3% |
+| AXI SRAM (`.bss`) | 226,988 bytes | 512 KiB (524,288 bytes) | 56.7% |
+| DTCM RAM (`.dtcm_bss`) | 8,584 bytes | 128 KiB | 93.5% |
 
 
-The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, Queue, and RawTime delegation path. The cyclic-executive main loop, a TIM2-backed microsecond RawTime clock, and a bare-metal `Os::Queue` delegate are now implemented, linked, and confirmed running on the physical board, with the LED physically verified blinking end-to-end — including with every active component's cooperative dispatch fully enabled via `taskRunner.runAll()` (see "Hardware bring-up" above). The next step is trimming the AXI SRAM budget back to a healthier margin (queue-depth/serialization tuning), followed by extended hardware validation (TIM2 rollover, interrupt-mask restoration, and sustained-run stability) and the functional USART1 DMA adapter for PB14/PB15.
+The development order has been intentionally revised so memory configuration precedes OSAL implementation. This established the target resource contract before finalizing the Task, Mutex, Queue, and RawTime delegation path. The cyclic-executive main loop, a TIM2-backed microsecond RawTime clock, and a bare-metal `Os::Queue` delegate are now implemented, linked, and confirmed running on the physical board, with the LED physically verified blinking end-to-end — including with every active component's cooperative dispatch fully enabled via `taskRunner.runAll()` (see "Hardware bring-up" above). The next step is implementing the non-blocking USART1 DMA adapter for PB14/PB15 using the recovered AXI SRAM budget, followed by extended TIM2 rollover, interrupt-mask, and sustained-run validation.
 
 The personal progress checklist can be found in the [Checklist file](Checklist.md).
