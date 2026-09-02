@@ -27,12 +27,10 @@ enum {
     // (wider) channel ID type, kept at the framework default for parity.
     TLMCHAN_HASH_MOD_VALUE = 99,
 
-    // Must be >= number of telemetry channels in the system (93 today).
-    // 128 leaves ~35 channels of headroom for the upcoming USART driver.
+    // Must be >= number of telemetry channels in the system (97 today).
     TLMCHAN_HASH_BUCKETS = 128,
 
-    // Preserve original uncapped-per-cycle behavior.
-    TLMCHAN_MAX_ENTRIES_PER_RUN = TLMCHAN_HASH_BUCKETS,
+    TLMCHAN_MAX_ENTRIES_PER_RUN = 128,
 };
 
 }
