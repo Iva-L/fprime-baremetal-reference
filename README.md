@@ -26,11 +26,13 @@ The `ReferenceDeployment` image has been flashed to and verified running on
 the physical STM32H753XI-EVAL2 board: execution reaches `main()`, completes
 topology setup, and runs the non-blocking cyclic executive continuously with
 no assertion failures, with the physical LED confirmed toggling via a live
-GDB register poll. A production-ready flight image still requires the
-STM32 USART1 DMA driver, extended hardware validation (timer rollover,
-sustained-run stability), and revisiting the AXI SRAM memory budget (see
-"Hardware bring-up" below — margin is now thin after a bootstrap-allocator
-pool increase).
+GDB register poll. The USART1 DMA ground link is also live: `Drv::Stm32UartDriver`
+transmits and receives over PB14/PB15 through the STLINK-V3E VCP with DMA on
+both directions and zero TX/RX errors (see "Hardware bring-up: USART1 DMA
+ground link" below). A production-ready flight image still requires
+protocol-level command/telemetry validation against `fprime-gds` and extended
+hardware validation (TIM2 rollover, long-duration stability). AXI SRAM margin
+is currently 50.4%.
 
 ## Current migration status
 
@@ -123,6 +125,30 @@ The optimized image was rebuilt and flashed successfully to the physical STM32H7
 | `CdhCore::tlmSend` | 320,872 bytes | approximately 83,000 bytes | approximately 238 KiB recovered |
 
 The deployment therefore has sufficient AXI SRAM headroom for USART1 PB14/PB15 DMA buffers, fixed-size UART ring buffers, and the initial ground-link integration without increasing the bootstrap pool again.
+
+### Hardware bring-up: USART1 DMA ground link — cache, rate-group, and queue-depth fixes (September 2, 2026)
+
+Flashing the first functional `Drv::Stm32UartDriver` (USART1 TX/RX via DMA1 Stream0/1) exposed four distinct bugs. All were diagnosed on the physical board with `pyocd` (breakpoints on `HardFault_Handler`, `BusFault_Handler`, `_exit`, `abort`, `Fw::defaultSwAssert`, `Svc::FatalHandler::FatalReceive_handler`) plus direct memory reads of component state.
+
+1. **HardFault: D-cache maintenance on an uninitialized cache.** The board landed in `HardFault_Handler` with `CFSR = 0x00000400` (`BFSR.IMPRECISERR`) and `HFSR = 0x40000000` (`FORCED`). The faulting PC resolved inside `Stm32::CleanDCacheForDma`, on the loop that writes `SCB->DCCMVAC`, with `r0` pointing exactly at `comDriver.m_txStaging` and `r1 = 1024`. Root cause: `SCB->CCR` read `0x00040200` — **both I-cache and D-cache were disabled and had never been invalidated since power-on**, because nothing in the project ever called `SCB_EnableICache()`/`SCB_EnableDCache()` (CubeMX normally emits these in `main()`). On Cortex-M7 the L1 cache tags/data are *undefined* at reset, so a clean-by-address writes lines whose random tags read as dirty back to arbitrary addresses. Nothing had crashed before only because no code in the project performed cache maintenance until the DMA driver arrived. Fixed by calling `SCB_EnableICache()` and `SCB_EnableDCache()` at the top of `main()` — the latter runs a full set/way `DCISW` invalidate before setting `CCR.DC`, which makes clean/invalidate-by-address well-defined. Verified `CCR = 0x00070200` (IC=1, DC=1) at runtime.
+2. **FATAL: rate groups running 1000x too fast.** With the cache fixed, `Svc::ComQueue`'s `comStatusIn_handlerBase` began hard-asserting with `Os::Queue::Status = FULL` (8). Root cause: `RateGroupDriver` divisors are relative to the `CycleIn` invocation rate, and `Main.cpp` drove `CycleIn` once per **millisecond** while the divisors `{1, 2, 4}` assumed a 1 Hz base clock (the `rateGroupInterval(1, 0)` constant documenting that intent was declared but never used). Every rate group therefore ran at 1000x its named rate — `rateGroup_1Hz` at 1 kHz — pushing `comQueue.run` and telemetry into `comQueue`'s queue faster than the single-threaded cooperative executive could drain it. Time-to-assert scaled linearly with queue depth (0.20 s at depth 16, 0.99 s at depth 144), confirming steady accumulation rather than a transient burst. Fixed by moving the cyclic executive's rate-group tick to a 10 ms base period and setting the divisors to `{100, 200, 400}`. A 1 ms base with `{1000, 2000, 4000}` is *not* usable: `RateGroupDriver::configure()` asserts that the **product** of all divisors fits `FwSizeType`, and 8e9 overflows 32 bits. Verified on hardware at 100.4 driver ticks/second.
+3. **`comQueue` message-queue depth.** `Svc::TlmChan::Run_handler` emits one `PktSend` per changed channel inside a *single* dispatch (up to `TLMCHAN_MAX_ENTRIES_PER_RUN`, with 97 channels deployed). Under the cooperative executive `comQueue` cannot dispatch mid-burst, so the whole burst must fit in its queue at once — and while `comPacketQueueIn` carries a `drop` specifier, `comStatusIn` does not and hard-asserts on `FULL`. Raised `ComCcsdsConfig.QueueSizes.comQueue` from 16 to 144 and pinned `TLMCHAN_MAX_ENTRIES_PER_RUN` to an explicit 128 so the required invariant (queue depth > per-run cap) is stated rather than incidental. This grew the queue by ~34 KiB, which did not fit the measured 20.1 KiB of bootstrap-pool headroom, so `STATIC_HEAP_POOL_SIZE` went from 96 KiB to 128 KiB (measured pool usage is now 112,656 / 131,072 bytes, 18,416 free).
+4. **TX watchdog far shorter than the on-wire time.** With the link running, `comDriver.m_txErrorCount` climbed ~3/second. The driver used a fixed 10 ms transaction timeout, but at 115200 baud 8N1 a byte takes 86.8 us, so a full 1024-byte staging transfer needs ~89 ms — the watchdog was aborting every healthy transfer mid-flight. Replaced with a per-transfer timeout derived from the transfer length and the configured baud rate (`2 x on-wire time + 2 ms` slack; 179,776 us for 1024 bytes at 115200). TX error count is now a steady zero.
+
+The driver itself was also restructured so the DMA state machine runs in a `poll()` method called every cyclic-executive pass, while the FPP `run` port (wired to the 1 Hz rate group) only emits telemetry. Previously both ran per pass, taking `Svc::TlmChan`'s guarded-port mutex tens of thousands of times per second.
+
+**Verified on the physical STM32H753XI-EVAL2:** 180 seconds of continuous execution with zero hits on any fault, assert, abort, exit, or FATAL breakpoint; PF10 LED still toggling; 183 KB transmitted with `m_txErrorCount = 0` and `m_rxErrorCount = 0`. **Downlink confirmed at the byte level** by reading the ST-LINK VCP (`/dev/ttyACM0`) directly: 6,144 bytes captured in 6.0 s (1,024 B/s), matching the driver's internal `m_bytesSent` counter exactly. **Uplink confirmed** by injecting 96 bytes into the VCP in three idle-separated bursts: `m_bytesReceived` advanced by exactly 96 with zero errors and the RX ring fully drained, exercising DMA reception, idle-line detection, and `Fw::Buffer` return without leaks. Note the on-wire framing is CCSDS Space Packet (this deployment uses the `ComCcsds` subtopology), not the F Prime `0xDEADBEEF` protocol; full protocol-level command/telemetry validation against the GDS remains outstanding.
+
+Memory after these changes:
+
+| Region | Used | Capacity | Remaining margin |
+|---|---:|---:|---:|
+| Flash (`.text`+`.data`) | 530,936 bytes (518.5 KiB) | 2,048 KiB | 74.7% |
+| AXI SRAM (`.bss`) | 260,196 bytes | 512 KiB | 50.4% |
+| DTCM RAM (`.dtcm_bss`) | 8,584 bytes | 128 KiB | 93.5% |
+| Bootstrap pool | 112,656 bytes | 128 KiB | 14.1% |
+
+`ReferenceDeployment::comDriver` accounts for 10,496 bytes of AXI SRAM `.bss`: 4 KiB TX ring, 4 KiB RX ring, and two 32-byte-aligned 1 KiB DMA staging buffers, all DMA-accessible and never in DTCM.
 
 ### Sizing and memory baseline
 
