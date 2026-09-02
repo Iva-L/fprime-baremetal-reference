@@ -26,13 +26,14 @@ The `ReferenceDeployment` image has been flashed to and verified running on
 the physical STM32H753XI-EVAL2 board: execution reaches `main()`, completes
 topology setup, and runs the non-blocking cyclic executive continuously with
 no assertion failures, with the physical LED confirmed toggling via a live
-GDB register poll. The USART1 DMA ground link is also live: `Drv::Stm32UartDriver`
-transmits and receives over PB14/PB15 through the STLINK-V3E VCP with DMA on
-both directions and zero TX/RX errors (see "Hardware bring-up: USART1 DMA
-ground link" below). A production-ready flight image still requires
-protocol-level command/telemetry validation against `fprime-gds` and extended
-hardware validation (TIM2 rollover, long-duration stability). AXI SRAM margin
-is currently 50.4%.
+GDB register poll. The USART1 DMA ground link is also live and validated
+end-to-end: `Drv::Stm32UartDriver` transmits and receives over PB14/PB15
+through the STLINK-V3E VCP with DMA on both directions, and a 21+ minute
+continuous `fprime-gds` session over that link confirmed real command uplink,
+telemetry downlink, and event downlink (see "Hardware bring-up: USART1 DMA
+ground link" below). A production-ready flight image still requires extended
+hardware validation (TIM2 rollover, long-duration stability) and the HIL
+automation planned for later weeks. AXI SRAM margin is currently 50.4%.
 
 ## Current migration status
 
@@ -137,7 +138,14 @@ Flashing the first functional `Drv::Stm32UartDriver` (USART1 TX/RX via DMA1 Stre
 
 The driver itself was also restructured so the DMA state machine runs in a `poll()` method called every cyclic-executive pass, while the FPP `run` port (wired to the 1 Hz rate group) only emits telemetry. Previously both ran per pass, taking `Svc::TlmChan`'s guarded-port mutex tens of thousands of times per second.
 
-**Verified on the physical STM32H753XI-EVAL2:** 180 seconds of continuous execution with zero hits on any fault, assert, abort, exit, or FATAL breakpoint; PF10 LED still toggling; 183 KB transmitted with `m_txErrorCount = 0` and `m_rxErrorCount = 0`. **Downlink confirmed at the byte level** by reading the ST-LINK VCP (`/dev/ttyACM0`) directly: 6,144 bytes captured in 6.0 s (1,024 B/s), matching the driver's internal `m_bytesSent` counter exactly. **Uplink confirmed** by injecting 96 bytes into the VCP in three idle-separated bursts: `m_bytesReceived` advanced by exactly 96 with zero errors and the RX ring fully drained, exercising DMA reception, idle-line detection, and `Fw::Buffer` return without leaks. Note the on-wire framing is CCSDS Space Packet (this deployment uses the `ComCcsds` subtopology), not the F Prime `0xDEADBEEF` protocol; full protocol-level command/telemetry validation against the GDS remains outstanding.
+**Verified on the physical STM32H753XI-EVAL2:** 180 seconds of continuous execution with zero hits on any fault, assert, abort, exit, or FATAL breakpoint; PF10 LED still toggling; 183 KB transmitted with `m_txErrorCount = 0` and `m_rxErrorCount = 0`. **Downlink confirmed at the byte level** by reading the ST-LINK VCP (`/dev/ttyACM0`) directly: 6,144 bytes captured in 6.0 s (1,024 B/s), matching the driver's internal `m_bytesSent` counter exactly. **Uplink confirmed** by injecting 96 bytes into the VCP in three idle-separated bursts: `m_bytesReceived` advanced by exactly 96 with zero errors and the RX ring fully drained, exercising DMA reception, idle-line detection, and `Fw::Buffer` return without leaks. The on-wire framing is CCSDS Space Packet (this deployment uses the `ComCcsds` subtopology), not the F Prime `0xDEADBEEF` protocol.
+
+**Protocol-level validation against `fprime-gds` (September 2, 2026):** ran
+```shell
+fprime-gds -n --dictionary build-artifacts/stm32h7/ReferenceDeployment/dict/ReferenceDeploymentTopologyDictionary.json \
+  --communication-selection uart --uart-device /dev/ttyACM0 --uart-baud 115200
+```
+against the physical board (GDS auto-selects `space-packet-space-data-link` framing from the dictionary) for 21+ minutes continuously. `comm.py.log` recorded exactly 3 `framing` warnings, all `APID sequence count` resyncs within the first 47 seconds of connecting — GDS catching up to the board's already-running sequence counters — and none afterward; 0 GDS errors and 0 FATALs for the rest of the session. `channel.log` grew continuously the whole time (12,000+ decoded telemetry samples at ~10/s), with `ComCcsds.comQueue.buffQueueDepth` holding at `0`/`1` throughout — confirming the `comQueue` depth fix below holds under sustained real traffic, not just the earlier synthetic load test. `command.log`/`event.log` show a complete round trip: `CdhCore.cmdDisp.CMD_NO_OP` and four `CMD_NO_OP_STRING` commands (including a deliberately oversized string) were sent from GDS, dispatched, and completed on the board, with matching `OpCodeDispatched` → `NoOpReceived`/`NoOpStringReceived` → `OpCodeCompleted` events downlinked back over the same DMA link; the oversized-string command correctly returned `OpCodeError`/`FORMAT_ERROR` instead of corrupting state, exercising the error path over a real round trip as well.
 
 Memory after these changes:
 
