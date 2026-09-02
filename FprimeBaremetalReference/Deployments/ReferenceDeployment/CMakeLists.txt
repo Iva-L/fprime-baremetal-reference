@@ -17,6 +17,7 @@ add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
 # add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MyComponent/")
 
 register_fprime_deployment(
+    ReferenceDeployment
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/BootstrapAllocator.cpp"
@@ -27,11 +28,16 @@ register_fprime_deployment(
         # override the weak Default_Handler aliases in the startup file --
         # see the NOTE in lib/fprime-stm32/CMakeLists.txt for the full
         # static-archive-extraction explanation.
-        "${CMAKE_CURRENT_LIST_DIR}/../lib/fprime-stm32/src/stm32h7xx_it.c"
+        "${CMAKE_CURRENT_LIST_DIR}/../../../lib/fprime-stm32/src/stm32h7xx_it.c"
     DEPENDS
-        ${FPRIME_CURRENT_MODULE}_Top
+        ReferenceDeployment_Top
         FprimeStm32
         Os_Baremetal_OverrideNewDelete
+)
+
+target_include_directories(ReferenceDeployment PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/.."
+    "${CMAKE_CURRENT_BINARY_DIR}/.."
 )
 
 target_link_options(ReferenceDeployment PRIVATE

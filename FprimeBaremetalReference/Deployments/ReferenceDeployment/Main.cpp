@@ -53,7 +53,7 @@ int main() {
             lastTick = currentTick;
 
             blinkCounter += elapsedTicks;
-            if (blinkCounter >= 500) {
+            if (blinkCounter >= 1000) {
                 HAL_GPIO_TogglePin(GPIOF, GPIO_PIN_10);
                 blinkCounter = 0;
             }

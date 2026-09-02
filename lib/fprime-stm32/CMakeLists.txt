@@ -12,7 +12,8 @@ set(FPRIME_STM32_HAL_SOURCES
     # DMA1_Stream0/1_IRQHandler, TIM2_IRQHandler, ...) in favor of the weak
     # infinite-loop aliases. It is instead compiled directly into the
     # ReferenceDeployment executable's own sources -- see
-    # ReferenceDeployment/CMakeLists.txt -- so its strong definitions are
+    # FprimeBaremetalReference/Deployments/ReferenceDeployment/CMakeLists.txt
+    # -- so its strong definitions are
     # always present and correctly override the weak ones.
     src/stm32h7_clock.c
     src/dma.c

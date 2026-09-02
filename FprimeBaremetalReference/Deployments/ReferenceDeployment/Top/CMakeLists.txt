@@ -11,6 +11,7 @@
 ####
 
 register_fprime_module(
+    ReferenceDeployment_Top
     AUTOCODER_INPUTS
         "${CMAKE_CURRENT_LIST_DIR}/instances.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/system.fpp"
@@ -19,4 +20,9 @@ register_fprime_module(
         "${CMAKE_CURRENT_LIST_DIR}/ReferenceDeploymentTopology.cpp"
     DEPENDS
         Fw_Logger
+)
+
+target_include_directories(ReferenceDeployment_Top PUBLIC
+    "${CMAKE_CURRENT_LIST_DIR}/../.."
+    "${CMAKE_CURRENT_BINARY_DIR}/../.."
 )
