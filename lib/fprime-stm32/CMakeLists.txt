@@ -48,8 +48,8 @@ target_include_directories(FprimeStm32 PUBLIC
     "${CMAKE_BINARY_DIR}"
     "${FPRIME_PROJECT_ROOT}"
     "${CMAKE_CURRENT_BINARY_DIR}"
-    "${CMAKE_CURRENT_BINARY_DIR}/Components/Stm32Timer"
     "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32UartDriver"
+    "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32Timer"
     "${CMAKE_CURRENT_LIST_DIR}/config"
     "${CMAKE_CURRENT_LIST_DIR}/include"
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Include"
@@ -62,6 +62,5 @@ target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER USE_PWR
 target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
 
 target_link_libraries(FprimeStm32 PUBLIC PlatformStm32h7)
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Drv")
