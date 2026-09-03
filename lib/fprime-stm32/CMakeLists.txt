@@ -25,9 +25,12 @@ set(FPRIME_STM32_HAL_SOURCES
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma_ex.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_exti.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c
@@ -54,7 +57,7 @@ target_include_directories(FprimeStm32 PUBLIC
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/STM32H7xx_HAL_Driver/Inc"
 )
 
-target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER)
+target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER USE_PWR_LDO_SUPPLY)
 
 target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
 
