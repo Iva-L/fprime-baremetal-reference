@@ -7,10 +7,11 @@
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
 
 #include <Os/Os.hpp>
-#include <Os/RawTime.hpp>
 #include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
+#include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
 #include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 #include <main.h>
+#include <stm32h7_clock.h>
 #include <tim2_clock.h>
 #include "stm32h7xx_hal.h"
 
@@ -36,6 +37,9 @@ int main() {
     SCB_EnableDCache();
 
     HAL_Init();
+
+    // Initialize the system clocks, including the HSE->PLL1 480 MHz configuration.
+    FprimeStm32_ClockInit();
     Stm32_Tim2ClockInit();
     
     // Initialize the LED hardware before entering the topology
@@ -48,32 +52,26 @@ int main() {
     ReferenceDeployment::setupTopology(inputs);
     ReferenceDeployment::lockBootstrapAllocator();
 
-    constexpr U32 RATE_GROUP_TICK_MS = 10;
-
     U32 lastTick = HAL_GetTick();
     U32 blinkCounter = 0;
 
     while (true) {
         const U32 currentTick = HAL_GetTick();
         const U32 elapsedTicks = currentTick - lastTick;
-        if (elapsedTicks >= RATE_GROUP_TICK_MS) {
+        if (elapsedTicks > 0) {
             lastTick = currentTick;
-
             blinkCounter += elapsedTicks;
             if (blinkCounter >= 1000) {
                 HAL_GPIO_TogglePin(GPIOF, GPIO_PIN_10);
                 blinkCounter = 0;
             }
-
-            Os::RawTime cycleStart;
-            (void)cycleStart.now();
-            static_cast<Svc::RateGroupDriverComponentBase&>(ReferenceDeployment::rateGroupDriver)
-                .CycleIn_handlerBase(0, cycleStart);
         }
 
         // Run a cooperative state machine step for each active registered component.
         taskRunner.runAll();
 
+        // Poll the TIM2 CH2 hardware tick source and the UART driver.
+        ReferenceDeployment::timer.poll();
         ReferenceDeployment::comDriver.poll();
     }
 }
