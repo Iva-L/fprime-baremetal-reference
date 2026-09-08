@@ -7,6 +7,7 @@
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
 #include <ReferenceDeployment/BootstrapAllocator.hpp>
 #include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
+#include <UartDriverConfig.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ReferenceDeployment/Top/ReferenceDeploymentPacketsAc.hpp>
 
@@ -23,9 +24,7 @@ Svc::ActiveRateGroup::ContextArray rateGroup_0_5HzContext(0);
 Svc::ActiveRateGroup::ContextArray rateGroup_0_25HzContext(0);
 
 enum TopologyConstants {
-    COMM_PRIORITY = 34,
-    USART1_IRQ_PREEMPT_PRIORITY = 0,
-    USART1_IRQ_SUB_PRIORITY = 0,
+    COMM_PRIORITY = 34
 };
 
 /**
@@ -61,7 +60,7 @@ void configureTopology() {
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
 
-    const bool comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY);
+    const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Drv::Stm32UartDriverConfig::USART1_IRQ_PREEMPT_PRIORITY, Drv::Stm32UartDriverConfig::USART1_IRQ_SUB_PRIORITY, Drv::Stm32UartDriverConfig::BAUD_RATE);
     FW_ASSERT(comDriverOpened);
 }
 

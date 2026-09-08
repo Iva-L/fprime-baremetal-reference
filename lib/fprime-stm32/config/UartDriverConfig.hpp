@@ -21,11 +21,19 @@ static constexpr U32 TX_BITS_PER_BYTE = 10;
 static constexpr U32 TX_TIMEOUT_MARGIN = 2;
 static constexpr U32 TX_TIMEOUT_SLACK_US = 2000;
 
+// USART1 configuration
+static constexpr U32 BAUD_RATE = 115200;
+static constexpr U32 USART1_IRQ_PREEMPT_PRIORITY = 0;
+static constexpr U32 USART1_IRQ_SUB_PRIORITY = 0;
+
 // Configuration invariants
 static_assert(TX_RING_SIZE > 0);
 static_assert(TX_STAGING_SIZE > 0);
 static_assert(RX_RING_SIZE > 0);
 static_assert(RX_STAGING_SIZE > 0);
+static_assert(BAUD_RATE > 0);
+static_assert(USART1_IRQ_PREEMPT_PRIORITY <= 0xF);
+static_assert(USART1_IRQ_SUB_PRIORITY <= 0xF);
 
 static_assert(TX_STAGING_SIZE <= 0xFFFF);
 static_assert(RX_STAGING_SIZE <= 0xFFFF);

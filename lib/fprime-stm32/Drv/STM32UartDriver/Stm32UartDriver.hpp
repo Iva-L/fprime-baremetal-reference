@@ -34,7 +34,8 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! \param allocationSize size of the AXI SRAM ring buffers
     //! \param preemptPriority NVIC preempt priority for the USART1 global interrupt
     //! \param subPriority NVIC subpriority for the USART1 global interrupt
-    Fw::Success open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority);
+    //! \param baudRate desired baud rate for the USART1 peripheral
+    Fw::Success open(FwSizeType allocationSize, U32 preemptPriority, U32 subPriority, U32 baudRate);
     //! One bounded step of the DMA state machine: consume ISR-latched
     //! completion/error state, run cache maintenance, start the next transfer,
     //! and hand received data upstream. Called every cyclic-executive pass (not
