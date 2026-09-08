@@ -15,6 +15,7 @@
 #define STM32_UART_DRIVER_HPP
 
 #include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriverComponentAc.hpp>
+#include <Fw/Types/SuccessEnumAc.hpp>
 #include <Os/RawTime.hpp>
 #include <UartDriverConfig.hpp>
 
@@ -33,7 +34,7 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! \param allocationSize size of the AXI SRAM ring buffers
     //! \param preemptPriority NVIC preempt priority for the USART1 global interrupt
     //! \param subPriority NVIC subpriority for the USART1 global interrupt
-    bool open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority);
+    Fw::Success open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority);
     //! One bounded step of the DMA state machine: consume ISR-latched
     //! completion/error state, run cache maintenance, start the next transfer,
     //! and hand received data upstream. Called every cyclic-executive pass (not

@@ -64,7 +64,7 @@ Stm32UartDriver ::Stm32UartDriver(const char* const compName)
 
 Stm32UartDriver ::~Stm32UartDriver() {}
 
-bool Stm32UartDriver ::open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority) {
+Fw::Success Stm32UartDriver ::open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority) {
     this->m_allocationSize = allocationSize;
 
     // DMA1 clock/NVIC must be enabled before HAL_UART_MspInit() (invoked from
@@ -93,14 +93,14 @@ bool Stm32UartDriver ::open(FwSizeType allocationSize, uint32_t preemptPriority,
     if (status != HAL_OK) {
         Fw::LogStringArg _op("ReceiveToIdle_DMA");
         this->log_WARNING_HI_HalError(_op, static_cast<I32>(status));
-        return false;
+        return Fw::Success::FAILURE;
     }
 
     this->log_ACTIVITY_HI_PortOpened(huart1.Init.BaudRate);
     if (this->isConnected_ready_OutputPort(0)) {
         this->ready_out(0);
     }
-    return true;
+    return Fw::Success::SUCCESS;
 }
 
 // ----------------------------------------------------------------------
