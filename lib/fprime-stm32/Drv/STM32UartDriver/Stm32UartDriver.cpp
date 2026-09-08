@@ -20,12 +20,14 @@ volatile uint32_t s_uartErrorCode = 0;
 }  // namespace
 
 extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef* huart) {
+    FW_ASSERT(huart != nullptr);
     if (huart->Instance == USART1) {
         s_txDmaBusy = false;
     }
 }
 
 extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef* huart, uint16_t Size) {
+    FW_ASSERT(huart != nullptr);
     if (huart->Instance == USART1) {
         s_rxChunkLen = Size;
         s_rxChunkReady = true;
@@ -33,6 +35,7 @@ extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef* huart, uint16_t S
 }
 
 extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
+    FW_ASSERT(huart != nullptr);
     if (huart->Instance == USART1) {
         s_uartErrorCode = huart->ErrorCode;
         s_uartErrorPending = true;
