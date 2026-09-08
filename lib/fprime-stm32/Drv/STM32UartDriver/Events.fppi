@@ -14,7 +14,7 @@ event HalError(
   severity warning high \
   id 1 \
   format "USART1 HAL operation {} failed: {}" \
-  throttle 5
+  throttle 1 every { seconds = 10 }
 
 @ USART1 reported a line/overrun/DMA error via huart1.ErrorCode
 event UartError(
@@ -23,7 +23,7 @@ event UartError(
   severity warning high \
   id 2 \
   format "USART1 error, HAL ErrorCode 0x{x}" \
-  throttle 5
+  throttle 1 every { seconds = 10 }
 
 @ The internal TX ring buffer had no room for a send request
 event TxRingFull(
@@ -33,7 +33,7 @@ event TxRingFull(
   severity warning high \
   id 3 \
   format "USART1 TX ring full, requested {} bytes, {} available" \
-  throttle 20
+  throttle 1 every { seconds = 10 }
 
 @ The internal RX ring buffer had no room for newly received data
 event RxRingFull(
@@ -42,7 +42,7 @@ event RxRingFull(
   severity warning high \
   id 4 \
   format "USART1 RX ring full, dropped {} bytes" \
-  throttle 20
+  throttle 1 every { seconds = 10 }
 
 @ A TX DMA transfer did not complete within the transaction watchdog
 event TxTimeout(
@@ -51,11 +51,11 @@ event TxTimeout(
   severity warning high \
   id 5 \
   format "USART1 TX DMA timed out after {} us" \
-  throttle 5
+  throttle 1 every { seconds = 10 }
 
 @ USART1 ran out of Fw::Buffer allocations for an incoming frame
 event NoBuffers() \
   severity warning high \
   id 6 \
   format "USART1 ran out of buffers for received data" \
-  throttle 20
+  throttle 1 every { seconds = 10 }
