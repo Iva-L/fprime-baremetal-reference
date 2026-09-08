@@ -16,6 +16,7 @@
 
 #include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriverComponentAc.hpp>
 #include <Os/RawTime.hpp>
+#include <UartDriverConfig.hpp>
 
 namespace Drv {
 
@@ -66,17 +67,11 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! recover a stuck transfer once it exceeds its watchdog.
     void pollTx();
 
-    static constexpr FwSizeType TX_RING_SIZE = 4096;
-    static constexpr FwSizeType TX_STAGING_SIZE = 1024;
-
-    //! Bit-times per byte on the wire for the configured 8N1 frame: 8 data bits
-    //! plus start and stop. Used to derive each transfer's watchdog from its
-    //! length -- a fixed timeout cannot work, since on-wire time scales with the
-    //! byte count (a full 1024-byte staging buffer needs ~89 ms at 115200 baud).
-    static constexpr U32 TX_BITS_PER_BYTE = 10;
-    //! Applied to the computed on-wire time to absorb DMA setup and ISR latency.
-    static constexpr U32 TX_TIMEOUT_MARGIN = 2;
-    static constexpr U32 TX_TIMEOUT_SLACK_US = 2000;
+    static constexpr FwSizeType TX_RING_SIZE = Stm32UartDriverConfig::TX_RING_SIZE;
+    static constexpr FwSizeType TX_STAGING_SIZE = Stm32UartDriverConfig::TX_STAGING_SIZE;
+    static constexpr U32 TX_BITS_PER_BYTE = Stm32UartDriverConfig::TX_BITS_PER_BYTE;
+    static constexpr U32 TX_TIMEOUT_MARGIN = Stm32UartDriverConfig::TX_TIMEOUT_MARGIN;
+    static constexpr U32 TX_TIMEOUT_SLACK_US = Stm32UartDriverConfig::TX_TIMEOUT_SLACK_US;
 
     U8 m_txRing[TX_RING_SIZE];
     FwSizeType m_txHead;   //!< next free slot to write
@@ -99,8 +94,8 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! clear HAL error state, report it, and re-arm reception.
     void recoverUartError();
 
-    static constexpr FwSizeType RX_RING_SIZE = 4096;
-    static constexpr FwSizeType RX_STAGING_SIZE = 1024;
+    static constexpr FwSizeType RX_RING_SIZE = Stm32UartDriverConfig::RX_RING_SIZE;
+    static constexpr FwSizeType RX_STAGING_SIZE = Stm32UartDriverConfig::RX_STAGING_SIZE;
 
     U8 m_rxRing[RX_RING_SIZE];
     FwSizeType m_rxHead;
