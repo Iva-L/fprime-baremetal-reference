@@ -30,8 +30,10 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! settings in lib/fprime-stm32/src/usart.c) and arm the first RX
     //! reception. Must be called once from configureTopology().
     //! \return true on success
-    bool open(FwSizeType allocationSize);
-
+    //! \param allocationSize size of the AXI SRAM ring buffers
+    //! \param preemptPriority NVIC preempt priority for the USART1 global interrupt
+    //! \param subPriority NVIC subpriority for the USART1 global interrupt
+    bool open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority);
     //! One bounded step of the DMA state machine: consume ISR-latched
     //! completion/error state, run cache maintenance, start the next transfer,
     //! and hand received data upstream. Called every cyclic-executive pass (not

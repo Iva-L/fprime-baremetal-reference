@@ -24,6 +24,8 @@ Svc::ActiveRateGroup::ContextArray rateGroup_0_25HzContext(0);
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
+    USART1_IRQ_PREEMPT_PRIORITY = 0,
+    USART1_IRQ_SUB_PRIORITY = 0,
 };
 
 /**
@@ -59,7 +61,7 @@ void configureTopology() {
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
 
-    const bool comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE);
+    const bool comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY);
     FW_ASSERT(comDriverOpened);
 }
 

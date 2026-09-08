@@ -64,7 +64,7 @@ Stm32UartDriver ::Stm32UartDriver(const char* const compName)
 
 Stm32UartDriver ::~Stm32UartDriver() {}
 
-bool Stm32UartDriver ::open(FwSizeType allocationSize) {
+bool Stm32UartDriver ::open(FwSizeType allocationSize, uint32_t preemptPriority, uint32_t subPriority) {
     this->m_allocationSize = allocationSize;
 
     // DMA1 clock/NVIC must be enabled before HAL_UART_MspInit() (invoked from
@@ -79,7 +79,7 @@ bool Stm32UartDriver ::open(FwSizeType allocationSize) {
     // Not configured by CubeMX: the USART1 global interrupt is required for
     // HAL_UARTEx_ReceiveToIdle_DMA()'s idle-line detection, which only the
     // USART peripheral (not the DMA streams) can signal.
-    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(USART1_IRQn, preemptPriority, subPriority);
     HAL_NVIC_EnableIRQ(USART1_IRQn);
 
     s_txDmaBusy = false;
