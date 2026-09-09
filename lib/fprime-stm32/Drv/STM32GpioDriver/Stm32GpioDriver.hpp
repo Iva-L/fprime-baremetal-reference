@@ -14,7 +14,7 @@
 
 #include "stm32h7xx_hal.h"
 
-namespace Drv {
+namespace Stm32 {
 
 class Stm32GpioDriver final : public Stm32GpioDriverComponentBase {
   public:

@@ -1,8 +1,8 @@
-module Drv {
+module Stm32 {
 
   passive component Stm32GpioDriver {
 
-    import Gpio
+    import Drv.Gpio
 
   }
 

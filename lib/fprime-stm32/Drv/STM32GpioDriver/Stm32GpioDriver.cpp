@@ -39,7 +39,7 @@ void enableGpioClock(GPIO_TypeDef* port) {
 
 }  // namespace
 
-namespace Drv {
+namespace Stm32 {
 
 Stm32GpioDriver ::Stm32GpioDriver(const char* const compName)
     : Stm32GpioDriverComponentBase(compName),
@@ -94,4 +94,4 @@ Drv::GpioStatus Stm32GpioDriver ::gpioWrite_handler(FwIndexType portNum, const F
     return Drv::GpioStatus::OP_OK;
 }
 
-}  // namespace Drv
+}  // namespace Stm32
