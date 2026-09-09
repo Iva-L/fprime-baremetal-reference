@@ -8,7 +8,7 @@
 
 #include <Fw/Types/BasicTypes.hpp>
 
-namespace Drv::Stm32UartDriverConfig {
+namespace Stm32::Stm32UartDriverConfig {
 
 // Ring and DMA staging capacities.
 static constexpr FwSizeType TX_RING_SIZE = 4096;
@@ -34,6 +34,6 @@ static_assert(TX_BITS_PER_BYTE > 0);
 static_assert(TX_TIMEOUT_MARGIN > 0);
 static_assert(TX_TIMEOUT_SLACK_US > 0);
 
-}  // namespace Drv::Stm32UartDriverConfig
+}  // namespace Stm32::Stm32UartDriverConfig
 
 #endif
