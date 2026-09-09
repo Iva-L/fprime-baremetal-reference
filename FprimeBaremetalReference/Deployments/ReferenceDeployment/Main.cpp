@@ -1,5 +1,6 @@
 // ======================================================================
 // \title Main.cpp
+// \author ivanlara
 // \brief Bare-metal cyclic executive entry point with integrated hardware LED blinker.
 // ======================================================================
 #include <ReferenceDeployment/BootstrapAllocator.hpp>
@@ -15,22 +16,6 @@
 #include <tim2_clock.h>
 #include "stm32h7xx_hal.h"
 
-// GPIO Initialization for the LED on PF10
-void Stm32_LedGpioInit() {
-
-    __HAL_RCC_GPIOF_CLK_ENABLE();
-
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = GPIO_PIN_10;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    
-    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-
-    HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_RESET);
-}
-
 int main() {
     
     SCB_EnableICache();
@@ -42,9 +27,6 @@ int main() {
     FprimeStm32_ClockInit();
     Stm32_Tim2ClockInit();
     
-    // Initialize the LED hardware before entering the topology
-    Stm32_LedGpioInit();
-    
     Os::init();
     Os::Baremetal::TaskRunner& taskRunner = Os::Baremetal::TaskRunner::getSingleton();
 
@@ -52,20 +34,7 @@ int main() {
     ReferenceDeployment::setupTopology(inputs);
     ReferenceDeployment::lockBootstrapAllocator();
 
-    U32 lastTick = HAL_GetTick();
-    U32 blinkCounter = 0;
-
     while (true) {
-        const U32 currentTick = HAL_GetTick();
-        const U32 elapsedTicks = currentTick - lastTick;
-        if (elapsedTicks > 0) {
-            lastTick = currentTick;
-            blinkCounter += elapsedTicks;
-            if (blinkCounter >= 1000) {
-                HAL_GPIO_TogglePin(GPIOF, GPIO_PIN_10);
-                blinkCounter = 0;
-            }
-        }
 
         // Run a cooperative state machine step for each active registered component.
         taskRunner.runAll();
