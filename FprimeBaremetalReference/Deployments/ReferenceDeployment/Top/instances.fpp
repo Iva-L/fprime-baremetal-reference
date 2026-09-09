@@ -64,7 +64,7 @@ module ReferenceDeployment {
 
   instance systemResources: Svc.SystemResources base id 0x10012000
 
-  instance timer: Drv.STM32Timer base id 0x10013000
+  instance timer: Stm32.STM32Timer base id 0x10013000
 
   instance comDriver: Stm32.Stm32UartDriver base id 0x10014000
 

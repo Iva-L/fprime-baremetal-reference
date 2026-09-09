@@ -12,7 +12,7 @@
 
 #include <cstdint>
 
-namespace Drv {
+namespace Stm32 {
 
 class STM32Timer final : public STM32TimerComponentBase {
   public:
@@ -34,7 +34,7 @@ class STM32Timer final : public STM32TimerComponentBase {
     //! with a fresh Os::RawTime timestamp, reprograms the next compare
     //! target, and detects/recovers a target that already elapsed before it
     //! could be reprogrammed (see TickOverrun). Called every cyclic-executive
-    //! pass from Main.cpp, same pattern as Drv::Stm32UartDriver::poll().
+    //! pass from Main.cpp, same pattern as Stm32::Stm32UartDriver::poll().
     void poll();
 
   private:
@@ -45,6 +45,6 @@ class STM32Timer final : public STM32TimerComponentBase {
     bool m_opened;
 };
 
-}  // namespace Drv
+}  // namespace Stm32
 
 #endif

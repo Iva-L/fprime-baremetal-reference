@@ -24,7 +24,7 @@ extern "C" void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef* htim) {
     }
 }
 
-namespace Drv {
+namespace Stm32 {
 
 STM32Timer ::STM32Timer(const char* const compName)
     : STM32TimerComponentBase(compName),
@@ -87,4 +87,4 @@ void STM32Timer ::poll() {
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, this->m_nextTarget);
 }
 
-}  // namespace Drv
+}  // namespace Stm32
