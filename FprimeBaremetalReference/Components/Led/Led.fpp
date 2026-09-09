@@ -14,8 +14,11 @@ module LedBlinker {
             onOff: Fw.On @< Indicates wheter the blinking should be on or off
         )
 
-        # @ Example telemetry counter
-        # telemetry ExampleCounter: U64
+        @ Telemetry channel to report blinking state.
+        telemetry BlinkingState: Fw.On
+
+        @ Telemetry channel to report the number of on/off transitions.
+        telemetry LedTransitionCount: U64
 
         @ Reports the state we set to blinking.
         event SetBlinkingState($state: Fw.On) \
@@ -27,11 +30,19 @@ module LedBlinker {
             severity activity high \
             format "LED blink interval set to {}."
 
-        # @ Example port: receiving calls from the rate group
-        # sync input port run: Svc.Sched
+        @ Report the current LED state.
+        event LedState(onOff: Fw.On) \
+            severity activity low \
+            format "LED is {}."
 
-        # @ Example parameter
-        # param PARAMETER_NAME: U32
+        @ Port receiving calls from the rate group
+        async input port run: Svc.Sched
+
+        @ Port sending calls to the GPIO driver
+        output port gpioSet: Drv.GpioWrite
+
+        @ Blinking interval in rate group ticks
+        param BLINK_INTERVAL: U32 default 1
 
         ###############################################################################
         # Standard AC Ports: Required for Channels, Events, Commands, and Parameters  #

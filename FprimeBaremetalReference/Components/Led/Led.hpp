@@ -23,11 +23,27 @@ class Led final : public LedComponentBase {
 
     //! Destroy Led object
     ~Led();
-
+  
   private:
+    // ----------------------------------------------------------------------
+    // Handler implementations for typed input ports
+    // ----------------------------------------------------------------------
+
+    //! Handler implementation for run
+    //!
+    //! Port receiving calls from the rate group
+    void run_handler(FwIndexType portNum,  //!< The port number
+                     U32 context           //!< The call order
+                     ) override;
+  
     // ----------------------------------------------------------------------
     // Handler implementations for commands
     // ----------------------------------------------------------------------
+
+    //! Emit parameter updated EVR
+    //!
+    void parameterUpdated(FwPrmIdType id  //!< The parameter ID
+                          ) override;
     
     //! Handler implementation for command BLINKING_ON_OFF
     //!
