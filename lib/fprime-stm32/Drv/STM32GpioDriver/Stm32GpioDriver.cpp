@@ -10,6 +10,9 @@ namespace {
 
 //! Enable the AHB4 clock for whichever GPIO port is passed in
 void enableGpioClock(GPIO_TypeDef* port) {
+
+    FW_ASSERT(port != nullptr);
+
     if (port == GPIOA) {
         __HAL_RCC_GPIOA_CLK_ENABLE();
     } else if (port == GPIOB) {
@@ -65,6 +68,16 @@ void Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw:
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(port, &init);
+
+    // Verify that the GPIO was successfully configured for the specified mode.
+    const U32 position = POSITION_VAL(pin);
+    const U32 actualModeBits = (port->MODER >> (position * 2U)) & GPIO_MODE;
+    const U32 expectedModeBits = init.Mode & GPIO_MODE;
+    if (actualModeBits != expectedModeBits) {
+        this->log_WARNING_HI_ConfigureError(pin, mode);
+        this->m_opened = false;
+        return;
+    }
 
     this->m_port = port;
     this->m_pin = pin;
