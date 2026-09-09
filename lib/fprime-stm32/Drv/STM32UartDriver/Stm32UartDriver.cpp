@@ -42,7 +42,7 @@ extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
     }
 }
 
-namespace Drv {
+namespace Stm32 {
 
 // ----------------------------------------------------------------------
 // Construction, initialization, and destruction
@@ -273,4 +273,4 @@ void Stm32UartDriver ::recoverUartError() {
     (void)HAL_UARTEx_ReceiveToIdle_DMA(&huart1, this->m_rxStaging, static_cast<uint16_t>(RX_STAGING_SIZE));
 }
 
-}  // namespace Drv
+}  // namespace Stm32

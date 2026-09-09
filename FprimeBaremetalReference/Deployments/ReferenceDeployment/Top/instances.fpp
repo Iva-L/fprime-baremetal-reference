@@ -66,6 +66,6 @@ module ReferenceDeployment {
 
   instance timer: Stm32.Timer base id 0x10013000
 
-  instance comDriver: Drv.Stm32UartDriver base id 0x10014000
+  instance comDriver: Stm32.Stm32UartDriver base id 0x10014000
 
 }

@@ -20,7 +20,7 @@
 #include <UartDriverConfig.hpp>
 #include <stm32h753xx.h>
 
-namespace Drv {
+namespace Stm32 {
 
 class Stm32UartDriver final : public Stm32UartDriverComponentBase {
   public:
