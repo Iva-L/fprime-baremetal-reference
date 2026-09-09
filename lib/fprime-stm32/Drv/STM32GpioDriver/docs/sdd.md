@@ -1,4 +1,4 @@
-# Drv::Stm32GpioDriver
+# Stm32::Stm32GpioDriver
 
 ## 1. Introduction
 

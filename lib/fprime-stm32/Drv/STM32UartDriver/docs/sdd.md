@@ -1,4 +1,4 @@
-# Drv::Stm32UartDriver
+# Stm32::Stm32UartDriver
 
 ## 1. Introduction
 
@@ -55,7 +55,7 @@ const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, USART
     }
 
 // Main.cpp cyclic executive loop, every pass:
-static_cast<Drv::Stm32UartDriverComponentBase&>(ReferenceDeployment::comDriver).run_handlerBase(0, 0);
+static_cast<Stm32::Stm32UartDriverComponentBase&>(ReferenceDeployment::comDriver).run_handlerBase(0, 0);
 ```
 
 ## 5. Events and telemetry
