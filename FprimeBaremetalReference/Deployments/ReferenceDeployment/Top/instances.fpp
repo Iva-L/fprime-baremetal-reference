@@ -73,4 +73,6 @@ module ReferenceDeployment {
 
   instance comDriver: Stm32.Stm32UartDriver base id 0x10014000
 
+  instance gpioDriver: Stm32.Stm32GpioDriver base id 0x10015000
+
 }

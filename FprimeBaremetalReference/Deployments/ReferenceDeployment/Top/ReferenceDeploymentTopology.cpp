@@ -1,7 +1,7 @@
 // ======================================================================
 // \title  ReferenceDeploymentTopology.cpp
+// \author ivanlara
 // \brief cpp file containing the topology instantiation code
-//
 // ======================================================================
 // Provides access to autocoded functions
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
@@ -71,6 +71,9 @@ void configureTopology() {
     if(comDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open UART\n");
     }
+
+    // On-board LED1 (PF10), driven as a push-pull output.
+    gpioDriver.open(GPIOF, GPIO_PIN_10, Fw::Direction::OUT);
 }
 
 void setupTopology(const TopologyState& state) {

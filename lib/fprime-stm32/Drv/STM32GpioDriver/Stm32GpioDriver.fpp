@@ -19,6 +19,15 @@ module Stm32 {
       id 0 \
       format "GPIO pin 0x{x} failed to configure for requested mode {}"
 
+    @ Emitted when the GPIO pin is successfully configured for the requested mode.
+    event ConfigureSuccess(
+                             pin: U32 @< The pin bitmask passed to open()
+                             requestedMode: Fw.Direction @< The mode that was requested
+                           ) \
+      severity activity high \
+      id 1 \
+      format "GPIO pin 0x{x} successfully configured for requested mode {}"
+
   }
 
 }

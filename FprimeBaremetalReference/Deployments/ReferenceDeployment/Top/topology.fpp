@@ -33,6 +33,7 @@ module ReferenceDeployment {
     instance comDriver
     instance cmdSeq
     instance led
+    instance gpioDriver
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -130,7 +131,11 @@ module ReferenceDeployment {
     }
 
     connections ReferenceDeployment {
-
+      # Rate Group clocked at 1Hz - output is connected to led's run input
+      rateGroup_1Hz.RateGroupMemberOut[7] -> led.run
+      
+      # led's gpioSet output is connected to gpioDriver's gpioWrite input
+      led.gpioSet -> gpioDriver.gpioWrite
     }
 
   }

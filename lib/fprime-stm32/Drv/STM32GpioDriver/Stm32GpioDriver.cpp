@@ -78,7 +78,8 @@ Fw::Success Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mo
         this->m_opened = false;
         return Fw::Success::FAILURE;
     }
-
+    
+    this->log_ACTIVITY_HI_ConfigureSuccess(pin, mode);
     this->m_port = port;
     this->m_pin = pin;
     this->m_mode = mode;
