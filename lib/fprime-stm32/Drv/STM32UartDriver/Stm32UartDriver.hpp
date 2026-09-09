@@ -1,14 +1,7 @@
 // ======================================================================
 // \title  STM32UartDriver.hpp
+// \author ivanlara
 // \brief  hpp file for the STM32H7 USART1 DMA-backed byte stream driver
-//
-// Non-blocking ground link driver for the bare-metal cyclic executive:
-// send_handler()/recvReturnIn_handler() only touch fixed-size AXI SRAM ring
-// buffers and return immediately; all DMA start/completion handling, error
-// recovery, and Fw::Buffer ownership transfer happens from run_handler(),
-// which is polled once per cyclic-executive pass via a rate group
-// connection. HAL ISR callbacks (see STM32UartDriver.cpp) do nothing but
-// latch volatile completion/error state.
 // ======================================================================
 
 #ifndef STM32_UART_DRIVER_HPP
@@ -118,6 +111,6 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     alignas(32) U8 m_rxStaging[RX_STAGING_SIZE];
 };
 
-}  // namespace Drv
+}  // namespace Stm32
 
 #endif

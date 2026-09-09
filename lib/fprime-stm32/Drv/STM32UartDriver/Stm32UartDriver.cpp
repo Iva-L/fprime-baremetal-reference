@@ -1,5 +1,6 @@
 // ======================================================================
 // \title  STM32UartDriver.cpp
+// \author ivanlara
 // \brief  cpp file for the STM32H7 USART1 DMA-backed byte stream driver
 // ======================================================================
 
