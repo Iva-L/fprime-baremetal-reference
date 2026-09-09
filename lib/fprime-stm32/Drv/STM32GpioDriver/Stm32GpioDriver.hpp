@@ -8,6 +8,9 @@
 #define STM32_GPIO_DRIVER_HPP
 
 #include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriverComponentAc.hpp>
+#include <Fw/Types/BasicTypes.hpp>
+#include <Fw/Types/DirectionEnumAc.hpp>
+#include <Fw/Types/LogicEnumAc.hpp>
 
 #include "stm32h7xx_hal.h"
 
@@ -15,11 +18,7 @@ namespace Drv {
 
 class Stm32GpioDriver final : public Stm32GpioDriverComponentBase {
   public:
-    enum class GpioMode {
-        OUTPUT,  //!< Push-pull output, driven by gpioWrite
-        INPUT,   //!< Floating input, sampled by gpioRead
-    };
-
+    
     //! Construct object Stm32GpioDriver
     explicit Stm32GpioDriver(const char* const compName);
 
@@ -34,7 +33,7 @@ class Stm32GpioDriver final : public Stm32GpioDriverComponentBase {
     //! \param pin: pin bit mask (e.g. GPIO_PIN_10)
     //! \param mode: OUTPUT or INPUT
     //! \param defaultState: initial level applied before enabling an OUTPUT pin
-    void open(GPIO_TypeDef* port, uint16_t pin, GpioMode mode, Fw::Logic defaultState = Fw::Logic::LOW);
+    void open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw::Logic defaultState = Fw::Logic::LOW);
 
   private:
     // ----------------------------------------------------------------------
@@ -50,8 +49,8 @@ class Stm32GpioDriver final : public Stm32GpioDriverComponentBase {
     Drv::GpioStatus gpioWrite_handler(FwIndexType portNum, const Fw::Logic& state) override;
 
     GPIO_TypeDef* m_port;
-    uint16_t m_pin;
-    GpioMode m_mode;
+    U16 m_pin;
+    Fw::Direction m_mode;
     bool m_opened;
 };
 
