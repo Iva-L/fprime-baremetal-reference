@@ -24,6 +24,11 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! MX_USART1_UART_Init(), fixed at the generated 115200 8N1 baud/frame
     //! settings in lib/fprime-stm32/src/usart.c) and arm the first RX
     //! reception. Must be called once from configureTopology().
+    //! \param allocationSize size of the AXI SRAM ring buffers
+    //! \param IRQn NVIC interrupt number for the USART1 global interrupt
+    //! \param preemptPriority NVIC preempt priority for the USART1 global interrupt
+    //! \param subPriority NVIC subpriority for the USART1 global interrupt
+    //! \param baudRate desired baud rate for the USART1 peripheral
     Fw::Success open(FwSizeType allocationSize, IRQn_Type IRQn, U32 preemptPriority, U32 subPriority, U32 baudRate);
     
     //! One bounded step of the DMA state machine: consume ISR-latched

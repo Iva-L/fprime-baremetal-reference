@@ -10,6 +10,7 @@
 #include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriverComponentAc.hpp>
 #include <Fw/Types/BasicTypes.hpp>
 #include <Fw/Types/DirectionEnumAc.hpp>
+#include <Fw/Types/SuccessEnumAc.hpp>
 #include <Fw/Types/LogicEnumAc.hpp>
 
 #include "stm32h7xx_hal.h"
@@ -33,7 +34,7 @@ class Stm32GpioDriver final : public Stm32GpioDriverComponentBase {
     //! \param pin: pin bit mask (e.g. GPIO_PIN_10)
     //! \param mode: OUTPUT or INPUT
     //! \param defaultState: initial level applied before enabling an OUTPUT pin
-    void open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw::Logic defaultState = Fw::Logic::LOW);
+    Fw::Success open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw::Logic defaultState = Fw::Logic::LOW);
 
   private:
     // ----------------------------------------------------------------------
@@ -54,6 +55,6 @@ class Stm32GpioDriver final : public Stm32GpioDriverComponentBase {
     bool m_opened;
 };
 
-}  // namespace Drv
+}  // namespace Stm32
 
 #endif

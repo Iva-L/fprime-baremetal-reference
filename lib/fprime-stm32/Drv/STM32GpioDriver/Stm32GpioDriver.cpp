@@ -53,7 +53,7 @@ Stm32GpioDriver ::Stm32GpioDriver(const char* const compName)
 
 Stm32GpioDriver ::~Stm32GpioDriver() {}
 
-void Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw::Logic defaultState) {
+Fw::Success Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw::Logic defaultState) {
     FW_ASSERT(port != nullptr);
 
     enableGpioClock(port);
@@ -76,13 +76,14 @@ void Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw:
     if (actualModeBits != expectedModeBits) {
         this->log_WARNING_HI_ConfigureError(pin, mode);
         this->m_opened = false;
-        return;
+        return Fw::Success::FAILURE;
     }
 
     this->m_port = port;
     this->m_pin = pin;
     this->m_mode = mode;
     this->m_opened = true;
+    return Fw::Success::SUCCESS;
 }
 
 Drv::GpioStatus Stm32GpioDriver ::gpioRead_handler(FwIndexType portNum, Fw::Logic& state) {
