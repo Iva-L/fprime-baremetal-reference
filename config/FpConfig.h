@@ -43,7 +43,7 @@ extern "C" {
 
 // To reduce binary size, FW_OPTIONAL_NAME(<string>) can be used to substitute strings with an empty string
 // when running with FW_OBJECT_NAMES disabled
-#if FW_OBJECT_NAMES == 1
+#if FW_OBJECT_NAMES == 0
 #define FW_OPTIONAL_NAME(name) name  // NO_CODESONAR  LANG.PREPROC.MACROSTART/END
 #else
 #define FW_OPTIONAL_NAME(name) ""  // NO_CODESONAR  LANG.PREPROC.MACROSTART/END
@@ -75,7 +75,7 @@ extern "C" {
 
 // This allows tracing calls through ports for debugging
 #ifndef FW_PORT_TRACING
-#define FW_PORT_TRACING (1)  //!< Indicates whether port calls are traced (more code, more visibility into execution)
+#define FW_PORT_TRACING (0)  //!< Indicates whether port calls are traced (more code, more visibility into execution)
 #endif
 
 // This generates code to connect to serialized ports

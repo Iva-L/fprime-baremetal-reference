@@ -12,7 +12,8 @@ set(FPRIME_STM32_HAL_SOURCES
     # DMA1_Stream0/1_IRQHandler, TIM2_IRQHandler, ...) in favor of the weak
     # infinite-loop aliases. It is instead compiled directly into the
     # ReferenceDeployment executable's own sources -- see
-    # ReferenceDeployment/CMakeLists.txt -- so its strong definitions are
+    # FprimeBaremetalReference/Deployments/ReferenceDeployment/CMakeLists.txt
+    # -- so its strong definitions are
     # always present and correctly override the weak ones.
     src/stm32h7_clock.c
     src/dma.c
@@ -24,9 +25,12 @@ set(FPRIME_STM32_HAL_SOURCES
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma_ex.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_exti.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c
@@ -44,18 +48,19 @@ target_include_directories(FprimeStm32 PUBLIC
     "${CMAKE_BINARY_DIR}"
     "${FPRIME_PROJECT_ROOT}"
     "${CMAKE_CURRENT_BINARY_DIR}"
-    "${CMAKE_CURRENT_BINARY_DIR}/Components/Stm32Timer"
-    "${CMAKE_CURRENT_BINARY_DIR}/Components/Stm32UartDriver"
+    "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32UartDriver"
+    "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32Timer"
+    "${CMAKE_CURRENT_LIST_DIR}/config"
     "${CMAKE_CURRENT_LIST_DIR}/include"
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Include"
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Device/ST/STM32H7xx/Include"
     "${CMAKE_CURRENT_LIST_DIR}/Drivers/STM32H7xx_HAL_Driver/Inc"
 )
 
-target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER)
+target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER USE_PWR_LDO_SUPPLY)
 
 target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
 
 target_link_libraries(FprimeStm32 PUBLIC PlatformStm32h7)
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Drv")

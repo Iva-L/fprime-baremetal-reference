@@ -1,2 +1,0 @@
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Stm32Timer")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Stm32UartDriver")

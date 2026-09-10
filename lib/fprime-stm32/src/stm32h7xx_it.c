@@ -58,6 +58,7 @@
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart1_rx;
+extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -226,6 +227,19 @@ void DMA1_Stream1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream1_IRQn 1 */
 
   /* USER CODE END DMA1_Stream1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt.
+  *
+  * Required for HAL_UARTEx_ReceiveToIdle_DMA()'s idle-line detection: the IDLE
+  * flag is only visible through the USART global interrupt, not the DMA
+  * stream interrupts. Dispatches to HAL_UARTEx_RxEventCallback()/
+  * HAL_UART_ErrorCallback() in Drv::Stm32UartDriver.
+  */
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
 }
 
 /**
