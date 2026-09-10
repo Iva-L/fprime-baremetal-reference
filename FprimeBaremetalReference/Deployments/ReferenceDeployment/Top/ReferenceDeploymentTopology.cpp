@@ -73,7 +73,10 @@ void configureTopology() {
     }
 
     // On-board LED1 (PF10), driven as a push-pull output.
-    gpioDriver.open(GPIOF, GPIO_PIN_10, Fw::Direction::OUT);
+    const Fw::Success gpioDriverOpened = gpioDriver.open(GPIOF, GPIO_PIN_10, Fw::Direction::OUT);
+    if(gpioDriverOpened == Fw::Success::FAILURE) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO\n");
+    }
 }
 
 void setupTopology(const TopologyState& state) {
