@@ -53,6 +53,7 @@ void configureTopology() {
     // Rate group driver needs a divisor list
     rateGroupDriver.configure(rateGroupDivisorsSet);
 
+    // The timer rate is set to 10000 microseconds (10 ms)
     timer.open(10000);
 
     // Rate groups require context arrays.

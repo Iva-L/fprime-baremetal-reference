@@ -36,7 +36,7 @@ STM32Timer ::STM32Timer(const char* const compName)
 
 STM32Timer ::~STM32Timer() {}
 
-void STM32Timer ::open(uint32_t periodUs) {
+void STM32Timer ::open(U32 periodUs) {
     FW_ASSERT(periodUs > 0);
 
     this->m_periodTicks = periodUs;  // TIM2 runs at 1 MHz: 1 tick == 1 us
@@ -72,11 +72,11 @@ void STM32Timer ::poll() {
     (void)timestamp.now();
     this->CycleOut_out(0, timestamp);
 
-    uint32_t nextTarget = this->m_nextTarget + this->m_periodTicks;
-    const uint32_t now = TIM2->CNT;
+    U32 nextTarget = this->m_nextTarget + this->m_periodTicks;
+    const U32 now = TIM2->CNT;
 
-    if (static_cast<int32_t>(now - nextTarget) >= 0) {
-        const uint32_t lateUs = now - nextTarget;
+    if (static_cast<I32>(now - nextTarget) >= 0) {
+        const U32 lateUs = now - nextTarget;
         nextTarget = now + this->m_periodTicks;
         this->m_overrunCount++;
         this->tlmWrite_OverrunCount(this->m_overrunCount);
