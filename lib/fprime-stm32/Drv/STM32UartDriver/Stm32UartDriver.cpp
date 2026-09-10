@@ -122,7 +122,7 @@ void Stm32UartDriver ::run_handler(FwIndexType portNum, U32 context) {
 }
 
 Drv::ByteStreamStatus Stm32UartDriver ::send_handler(FwIndexType portNum, Fw::Buffer& serBuffer) {
-    if (serBuffer.getData() == nullptr || serBuffer.getSize() == 0) {
+    if (!serBuffer.isValid()) {
         return Drv::ByteStreamStatus::OTHER_ERROR;
     }
 
