@@ -49,8 +49,10 @@ USART1 is kept continuously armed with `HAL_UARTEx_ReceiveToIdle_DMA()` into a 1
 
 ```cpp
 // configureTopology(), after commsBufferManager sizing is known:
-const bool ok = comDriver.open(FW_COM_BUFFER_MAX_SIZE);
-FW_ASSERT(ok);
+const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Drv::Stm32UartDriverConfig::USART1_IRQ_PREEMPT_PRIORITY, Drv::Stm32UartDriverConfig::USART1_IRQ_SUB_PRIORITY, Drv::Stm32UartDriverConfig::BAUD_RATE);
+    if(comDriverOpened == Fw::Success::FAILURE) {
+        Fw::Logger::log("[ERROR] Failed to open UART\n");
+    }
 
 // Main.cpp cyclic executive loop, every pass:
 static_cast<Drv::Stm32UartDriverComponentBase&>(ReferenceDeployment::comDriver).run_handlerBase(0, 0);
