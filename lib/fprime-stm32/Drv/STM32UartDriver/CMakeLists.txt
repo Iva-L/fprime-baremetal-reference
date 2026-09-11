@@ -16,3 +16,14 @@ register_fprime_module(
     Os
     FprimeStm32
 )
+
+register_fprime_ut(
+    AUTOCODER_INPUTS
+        "${CMAKE_CURRENT_LIST_DIR}/Stm32UartDriver.fpp"
+    SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/test/ut/Stm32UartDriverTestMain.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/test/ut/Stm32UartDriverTester.cpp"
+    DEPENDS
+        STest # For rules-based testing
+    UT_AUTO_HELPERS
+)
