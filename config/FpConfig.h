@@ -135,7 +135,7 @@ extern "C" {
 // Define if serializables have toString() method. Turning off will save code space and
 // string constants. Must be enabled if text logging enabled
 #ifndef FW_SERIALIZABLE_TO_STRING
-#define FW_SERIALIZABLE_TO_STRING (0)  //!< Indicates if autocoded serializables have toString() methods
+#define FW_SERIALIZABLE_TO_STRING (1)  //!< Indicates if autocoded serializables have toString() methods
 #endif
 
 // Some settings to enable AMPCS compatibility. This breaks regular ISF GUI compatibility
