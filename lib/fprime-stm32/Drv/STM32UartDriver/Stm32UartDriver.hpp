@@ -11,7 +11,6 @@
 #include <Fw/Types/SuccessEnumAc.hpp>
 #include <Os/RawTime.hpp>
 #include <UartDriverConfig.hpp>
-#include <stm32h753xx.h>
 
 namespace Stm32 {
 
@@ -25,11 +24,14 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! settings in lib/fprime-stm32/src/usart.c) and arm the first RX
     //! reception. Must be called once from configureTopology().
     //! \param allocationSize size of the AXI SRAM ring buffers
-    //! \param IRQn NVIC interrupt number for the USART1 global interrupt
+    //! \param IRQn NVIC interrupt number for the USART1 global interrupt (the
+    //!        real IRQn_Type enum value, widened to a plain integer so this
+    //!        header carries no CMSIS dependency -- the real driver's .cpp
+    //!        casts it back before calling the NVIC HAL)
     //! \param preemptPriority NVIC preempt priority for the USART1 global interrupt
     //! \param subPriority NVIC subpriority for the USART1 global interrupt
     //! \param baudRate desired baud rate for the USART1 peripheral
-    Fw::Success open(FwSizeType allocationSize, IRQn_Type IRQn, U32 preemptPriority, U32 subPriority, U32 baudRate);
+    Fw::Success open(FwSizeType allocationSize, I32 IRQn, U32 preemptPriority, U32 subPriority, U32 baudRate);
     
     //! One bounded step of the DMA state machine: consume ISR-latched
     //! completion/error state, run cache maintenance, start the next transfer,
@@ -40,7 +42,65 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! Destroy object Stm32UartDriver
     ~Stm32UartDriver();
 
+    // ----------------------------------------------------------------------
+    // ISR signal surface: called by the real HAL callback trampoline (free
+    // functions with no user-context pointer) on the stm32h7 target. A unit
+    // test may also call these directly to simulate a hardware event, since
+    // no ISR exists on the host.
+    // ----------------------------------------------------------------------
+
+    //! Signal that the in-flight TX DMA transfer completed.
+    void signalTxComplete();
+
+    //! Signal that an RX idle-line chunk of `len` bytes is ready to drain.
+    void signalRxChunk(FwSizeType len);
+
+    //! Signal that USART1/DMA latched the given HAL error code.
+    void signalUartError(U32 errorCode);
+
   private:
+    // ----------------------------------------------------------------------
+    // HAL boundary: the only methods allowed to touch UART_HandleTypeDef/
+    // DMA_HandleTypeDef/HAL calls or cache maintenance. Implemented once
+    // against the real HAL in Stm32UartDriver.cpp (stm32h7 target only) and
+    // once as a fixed-behavior stand-in in Stm32UartDriverStub.cpp (host
+    // unit tests).
+    // ----------------------------------------------------------------------
+
+    //! Run MX_DMA_Init()/MX_USART1_UART_Init(), configure the USART1 global
+    //! NVIC interrupt, and arm the first RX reception. Returns true on
+    //! success (matches today's HAL_OK checks) and reports the peripheral's
+    //! actual configured baud via outActualBaudRate; emits HalError itself
+    //! on failure since only this method knows which HAL call failed.
+    bool hwOpen(I32 IRQn, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate, U32& outActualBaudRate);
+
+    //! Clean the D-cache over [data, data + len) and start a TX DMA
+    //! transfer out of it. Returns true if the HAL accepted the transfer.
+    bool hwStartTx(const U8* data, FwSizeType len);
+
+    //! Abort an in-flight TX DMA transfer (watchdog recovery).
+    void hwAbortTx();
+
+    //! Invalidate the D-cache over the RX staging buffer so the CPU reads
+    //! what the DMA controller actually wrote.
+    void hwInvalidateRxStaging();
+
+    //! Re-arm idle-line RX reception into the RX staging buffer. Returns
+    //! the raw HAL status (0 / HAL_OK on success) so hwOpen() can report an
+    //! exact failure code; other call sites treat any nonzero as failure.
+    I32 hwRestartRx();
+
+    //! Abort an in-flight RX DMA transfer (error recovery).
+    void hwAbortRx();
+
+    //! Clear the latched USART1 HAL error code after it has been reported.
+    void hwClearUartError();
+
+    //! Classify a latched HAL error code into RX-affecting / DMA-affecting
+    //! flags, matching the real HAL_UART_ERROR_* bitmask semantics without
+    //! exposing the bitmask itself outside the HAL boundary.
+    void hwClassifyUartError(U32 errorCode, bool& isRxAffecting, bool& isDmaAffecting);
+
     // ----------------------------------------------------------------------
     // Handler implementations for user-defined typed input ports
     // ----------------------------------------------------------------------
@@ -68,6 +128,14 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     Os::RawTime m_txDmaStart;
     U32 m_txTimeoutUs;  //!< watchdog for the in-flight transfer, sized from its length
     U32 m_baudRate;     //!< configured USART1 baud, cached for watchdog sizing
+
+    //! Completion/error state latched by signalTxComplete()/signalRxChunk()/
+    //! signalUartError() and consumed by poll()'s state machine below.
+    volatile bool m_txDmaBusy;
+    volatile bool m_rxChunkReady;
+    FwSizeType m_rxChunkLen;
+    volatile bool m_uartErrorPending;
+    U32 m_uartErrorCode;
 
     //! Allocation and telemetry state.
     FwSizeType m_allocationSize;  //!< size of each Fw::Buffer allocation request
@@ -114,6 +182,11 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     //! clear HAL error state, report it, and re-arm reception.
     void recoverUartError();
     alignas(32) U8 m_rxStaging[RX_STAGING_SIZE];
+
+    //! Unit-test access to m_rxStaging, to stage deterministic bytes ahead
+    //! of a signalRxChunk() call (there is no real DMA on the host to fill
+    //! it) -- see CPP-16 (friend only for unit-test access).
+    friend class Stm32UartDriverTester;
 };
 
 }  // namespace Stm32
