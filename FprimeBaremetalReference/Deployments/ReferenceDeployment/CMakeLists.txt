@@ -7,6 +7,8 @@
 #
 #####
 
+restrict_platforms(stm32h7)
+
 ###
 # Topology and Components
 ###
