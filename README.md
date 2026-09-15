@@ -71,14 +71,22 @@ The reference linker script separates CPU-only state from DMA-visible storage:
 | `DTCM_RAM` | 128 KiB |
 
 The latest recorded `baremetal-size stm32h7` result for the complete deployment
-was:
+(re-measured September 14, 2026, after the Week 8 topology wiring and Week 9
+driver-architecture split) was:
 
 | Region | Used | Remaining |
 | --- | ---: | ---: |
-| Flash | 560,160 bytes | 73.3% |
-| AXI SRAM `.bss` | 226,988 bytes | 56.7% |
+| Flash (`.text`+`.data`) | 645,708 bytes | 69.2% |
+| AXI SRAM `.bss` | 261,308 bytes | 50.1% |
 | DTCM `.dtcm_bss` | 8,584 bytes | 93.5% |
 | Bootstrap pool | 112,656 of 131,072 bytes | 14.1% |
+
+Flash and AXI SRAM `.bss` grew modestly (Week 8's `led`/`gpioDriver` topology
+wiring plus the Week 9 driver split adding a handful of new members per
+driver); DTCM `.dtcm_bss` is unchanged byte-for-byte. The bootstrap-pool
+figure is a runtime allocation count, not a static section size, and is
+carried over from the last hardware run (no board was attached in this
+measurement pass) — it should still be re-verified live once convenient.
 
 The reduced framework configuration in `config/` keeps queue depths, telemetry
 hash tables, command tables, and file catalog capacity proportional to this
@@ -92,7 +100,10 @@ setup, and run with cooperative dispatch enabled. Recorded validation includes:
 
 - No assertion, abort, exit, HardFault, BusFault, or fatal-handler hits during
   the endurance runs.
-- The PF10 user LED confirmed toggling through live GDB register reads.
+- The on-board LED (PF10), driven exclusively through `Stm32::Stm32GpioDriver`
+  (no application code touches `HAL_GPIO_*` directly), confirmed blinking
+  end-to-end via a GDS-based integration test rather than manual register
+  polling.
 - All registered active-component queues created and dispatched successfully.
 - The USART1 DMA ground link exercised with command, telemetry, and event
   traffic through `fprime-gds`.
@@ -101,11 +112,33 @@ Detailed board pin mappings, clock initialization, DMA cache requirements,
 driver behavior, hardware measurements, and the remaining STM32 soak tests are
 documented in [`lib/fprime-stm32/README.md`](lib/fprime-stm32/README.md).
 
+## Testing
+
+Two independent layers of automated testing back this deployment:
+
+- **Host unit tests** (`fprime-util check`, run from a component's own
+  directory): every STM32 driver under `lib/fprime-stm32/Drv/` splits into a
+  hardware-independent implementation and a thin HAL boundary that's swapped
+  for a stub on the host, so `Stm32GpioDriver`, `Stm32UartDriver`, and
+  `STM32Timer` all get real GTest coverage without an ARM toolchain. See
+  ["Host unit testing"](lib/fprime-stm32/README.md#host-unit-testing-fprime-util-check)
+  in `lib/fprime-stm32/README.md` for the pattern.
+- **Hardware-in-the-loop integration tests** (`pytest` + the F´ GDS
+  Integration Test API, against the real board): `led_integration_tests.py`
+  and `uart_integration_tests.py` drive commands over the live ground link
+  and assert on the resulting events/telemetry.
+
 ## Current follow-up work
 
+- Re-verify the bootstrap-pool usage figure live on hardware (it's a runtime
+  allocation count, not a static section size, so the host-only
+  `baremetal-size` re-measurement above couldn't refresh it).
 - Repeat the extended ground-link and GDS soak at the corrected system clock.
 - Validate TIM2 rollover, interrupt masking, and long-duration stability.
 - Continue hardware-in-the-loop automation for the STM32 target.
 - Add persistent file support for the MicroFs-backed services.
+- Fix `Svc.Seq`'s `SequenceArgumentsMaxSize` config gap on the native/host
+  platform so a project-wide `fprime-util check` succeeds from the repo root,
+  not just from each component's own directory.
 
 The personal progress checklist is available in [Checklist.md](Checklist.md).
