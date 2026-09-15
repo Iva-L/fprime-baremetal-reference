@@ -40,7 +40,7 @@ jobs:
       - name: Generate CMake Cache
         run: |
           # Generates build files targeting stm32h7 baremetal platform
-          fprime-util generate stm32h7
+          fprime-util generate stm32h7 && fprime-util generate stm32h7 --ut
 
       - name: Cross-Compile F' Binary
         run: |
@@ -50,19 +50,29 @@ jobs:
       - name: Run Component/Led Host Tests
         run: |
           # Navigate to the Led component directory and run host tests
-          cd $GITHUB_WORKSPACE/FprimeBaremetalReference/Components/Led &&fprime-util check
+          cd $GITHUB_WORKSPACE/FprimeBaremetalReference/Components/Led && fprime-util check --coverage
 
       - name: Run Srv/STM32UartDriver Host Tests
         run: |
           # Navigate to the STM32UartDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32UartDriver && fprime-util check
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
 
       - name: Run Srv/STM32Timer Host Tests
         run: |
           # Navigate to the STM32Timer component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32Timer && fprime-util check
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
           
       - name: Run Srv/STM32GpioDriver Host Tests
         run: |
           # Navigate to the STM32GpioDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32GpioDriver && fprime-util check
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage
+
+      - name: Collect and Upload Coverage Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-reports
+          path: |
+            FprimeBaremetalReference/Components/Led/coverage/
+            lib/fprime-stm32/Drv/*/coverage/
+          retention-days: 14
