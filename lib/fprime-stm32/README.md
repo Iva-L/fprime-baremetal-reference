@@ -153,6 +153,54 @@ wraps the C heap symbols so post-initialization allocations assert instead of
 silently using an unbounded heap. New components should be evaluated against
 both the AXI SRAM margin and the remaining bootstrap-pool capacity.
 
+## Host unit testing (`fprime-util check`)
+
+Every driver under `Drv/` splits into three files sharing one HAL-free
+header, so `fprime-util check` can compile and run its GTest unit test on
+the host (x86_64 Linux) without any ARM/CMSIS toolchain:
+
+- `<Driver>Common.cpp` — hardware-independent logic (validation, ring
+  buffers, state machines, event/telemetry emission). Always built, on
+  every platform. This is where unit tests get real coverage.
+- `<Driver>.cpp` — the real implementation, built only for the `stm32h7`
+  target. Every HAL/CMSIS touch (register access, `HAL_*` calls, ISR
+  callbacks) lives here behind a small set of private boundary methods
+  (named `hw*`) declared in the header. This is the only file allowed to
+  `#include` a vendor CMSIS/HAL header.
+- `<Driver>Stub.cpp` — built only for host unit tests. Implements the same
+  `hw*` boundary methods with fixed, no-HAL-dependency behavior (e.g.
+  "always succeeds," a settable fake counter). Never included in a
+  flight build.
+
+Each driver's `CMakeLists.txt` always registers the production module
+(`register_fprime_module`/`register_fprime_library`) — only the choice of
+`<Driver>.cpp` vs `<Driver>Stub.cpp` (and the matching `DEPENDS`) is
+platform-conditional — and always registers `register_fprime_ut` (never
+gated by `restrict_platforms`, which would make the UT target itself
+unreachable and `fprime-util check` fail with `NoTargetFoundException`).
+`FprimeStm32` (the real vendor HAL static library) and its `Os/`
+subdirectory are gated to the `stm32h7` target in this directory's own
+`CMakeLists.txt`.
+
+**Adding a new driver:** don't add `#ifdef BUILD_UT`/`#ifndef` to
+production code. If the driver only needs HAL calls that map cleanly onto
+a boundary method, follow the `Common`/`Real`/`Stub` split above (copy an
+existing driver's `CMakeLists.txt`). If a routine is genuinely hard to
+fake (e.g. an ISR callback with no user-context pointer, like
+`HAL_UART_TxCpltCallback`), do what `Stm32UartDriver`/`STM32Timer` do:
+route it through a public `signalX()`/`hwArmY()` method on the component
+so a unit test can call it directly to simulate the hardware event, and
+keep a single-instance callback trampoline (a file-scope pointer set once
+in the real `open()`) in the real `.cpp` only.
+
+Verification commands:
+
+```sh
+fprime-util generate --ut -f   # regenerate the host/native UT build cache
+fprime-util check              # from a driver's directory: build + run its UT
+fprime-util check --coverage   # same, plus a line/function/branch coverage report
+```
+
 ## Known follow-up work
 
 - Repeat the extended USART1 DMA and GDS soak at the corrected 480 MHz clock.
