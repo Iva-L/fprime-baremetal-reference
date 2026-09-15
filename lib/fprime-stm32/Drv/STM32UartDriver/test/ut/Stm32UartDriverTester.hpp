@@ -40,8 +40,41 @@ class Stm32UartDriverTester final : public Stm32UartDriverGTestBase {
     // Tests
     // ----------------------------------------------------------------------
 
-    //! To do
-    void toDo();
+    //! open() succeeds, reports the actual baud, and emits PortOpened/ready
+    void testOpenSuccess();
+
+    //! send() enqueues into the TX ring and returns OP_OK
+    void testSendFits();
+
+    //! send() rejects a request that would overflow the TX ring
+    void testSendRejectedWhenFull();
+
+    //! poll() drains the TX ring into a (stubbed) DMA transfer, reflected
+    //! in BytesSent telemetry on the next run() tick
+    void testPollDrainsTx();
+
+    //! signalRxChunk() + poll() drains staged bytes to recv() with a
+    //! successfully allocated buffer
+    void testPollDrainsRx();
+
+    //! poll() reports NoBuffers and leaves data queued when allocate()
+    //! cannot supply a buffer
+    void testPollRxNoBuffers();
+
+    //! signalUartError() + poll() recovers and counts the error
+    void testUartErrorRecovery();
+
+  private:
+    // ----------------------------------------------------------------------
+    // Test support
+    // ----------------------------------------------------------------------
+
+    //! Override: by default the base class returns an invalid Fw::Buffer;
+    //! tests that need allocate() to succeed set m_allocateReturnsValid.
+    Fw::Buffer from_allocate_handler(FwIndexType portNum, FwSizeType size) override;
+
+    bool m_allocateReturnsValid = false;
+    U8 m_allocateBacking[256] = {0};
 
   private:
     // ----------------------------------------------------------------------
