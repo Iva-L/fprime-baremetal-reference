@@ -9,6 +9,8 @@
 #include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
 #include <UartDriverConfig.hpp>
 #include <Fw/Logger/Logger.hpp>
+
+#include "stm32h7xx_hal.h"
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ReferenceDeployment/Top/ReferenceDeploymentPacketsAc.hpp>
 
@@ -67,13 +69,15 @@ void configureTopology() {
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
 
-    const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, USART1_IRQn, USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY, BAUD_RATE);
+    const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, static_cast<I32>(USART1_IRQn),
+                                                        USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY,
+                                                        BAUD_RATE);
     if(comDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open UART\n");
     }
 
     // On-board LED1 (PF10), driven as a push-pull output.
-    const Fw::Success gpioDriverOpened = gpioDriver.open(GPIOF, GPIO_PIN_10, Fw::Direction::OUT);
+    const Fw::Success gpioDriverOpened = gpioDriver.open(Stm32::GpioPort::F, GPIO_PIN_10, Fw::Direction::OUT);
     if(gpioDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open GPIO\n");
     }

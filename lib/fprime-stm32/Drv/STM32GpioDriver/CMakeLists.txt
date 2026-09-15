@@ -1,17 +1,35 @@
 ####
 # F prime CMakeLists.txt:
-#
-# SOURCE_FILES: combined list of source and autocoding files
-# MOD_DEPS: (optional) module dependencies
-#
 ####
+if (FPRIME_PLATFORM STREQUAL "stm32h7" AND NOT FPRIME_USE_STUBBED_DRIVERS)
+    set(STM32_GPIO_DRIVER_IMPL_SOURCE "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriver.cpp")
+    set(STM32_GPIO_DRIVER_IMPL_DEPENDS FprimeStm32)
+else()
+    set(STM32_GPIO_DRIVER_IMPL_SOURCE "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriverStub.cpp")
+    set(STM32_GPIO_DRIVER_IMPL_DEPENDS)
+endif()
+
 register_fprime_module(
   AUTOCODER_INPUTS
     "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriver.fpp"
   SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriver.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriverCommon.cpp"
+    "${STM32_GPIO_DRIVER_IMPL_SOURCE}"
   HEADERS
     "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriver.hpp"
   DEPENDS
-    FprimeStm32
+    ${STM32_GPIO_DRIVER_IMPL_DEPENDS}
+)
+
+register_fprime_ut(
+    AUTOCODER_INPUTS
+        "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriver.fpp"
+    SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriverCommon.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Stm32GpioDriverStub.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/test/ut/Stm32GpioDriverTestMain.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/test/ut/Stm32GpioDriverTester.cpp"
+    DEPENDS
+        STest # For rules-based testing
+    UT_AUTO_HELPERS
 )
