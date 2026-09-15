@@ -1,0 +1,77 @@
+// ======================================================================
+// \title  STM32TimerTester.hpp
+// \author ivanlara
+// \brief  hpp file for STM32Timer component test harness implementation class
+// ======================================================================
+
+#ifndef Stm32_STM32TimerTester_HPP
+#define Stm32_STM32TimerTester_HPP
+
+#include "lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp"
+#include "lib/fprime-stm32/Drv/STM32Timer/STM32TimerGTestBase.hpp"
+
+namespace Stm32 {
+
+class STM32TimerTester final : public STM32TimerGTestBase {
+  public:
+    // ----------------------------------------------------------------------
+    // Constants
+    // ----------------------------------------------------------------------
+
+    // Maximum size of histories storing events, telemetry, and port outputs
+    static const FwSizeType MAX_HISTORY_SIZE = 10;
+
+    // Instance ID supplied to the component instance under test
+    static const FwEnumStoreType TEST_INSTANCE_ID = 0;
+
+  public:
+    // ----------------------------------------------------------------------
+    // Construction and destruction
+    // ----------------------------------------------------------------------
+
+    //! Construct object STM32TimerTester
+    STM32TimerTester();
+
+    //! Destroy object STM32TimerTester
+    ~STM32TimerTester();
+
+  public:
+    // ----------------------------------------------------------------------
+    // Tests
+    // ----------------------------------------------------------------------
+
+    //! open() arms the channel and emits Configured
+    void testOpenArms();
+
+    //! poll() with no tick pending raises nothing
+    void testPollWithoutTick();
+
+    //! signalTick() + poll() raises CycleOut and TickCount telemetry
+    void testPollWithTick();
+
+    //! A compare target that has already elapsed is detected as an overrun
+    void testOverrunDetection();
+
+  private:
+    // ----------------------------------------------------------------------
+    // Helper functions
+    // ----------------------------------------------------------------------
+
+    //! Connect ports
+    void connectPorts();
+
+    //! Initialize components
+    void initComponents();
+
+  private:
+    // ----------------------------------------------------------------------
+    // Member variables
+    // ----------------------------------------------------------------------
+
+    //! The component under test
+    STM32Timer component;
+};
+
+}  // namespace Stm32
+
+#endif
