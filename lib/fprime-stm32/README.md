@@ -114,7 +114,10 @@ included:
 - Topology setup and all active-component queues created successfully
 - No hits on assertion, abort, exit, HardFault, BusFault, or fatal-handler
   breakpoints during the recorded endurance runs
-- PF10 LED activity confirmed through live GDB reads of `GPIOF_ODR`
+- PF10 LED activity, driven exclusively through `Drv::Stm32GpioDriver` (wired
+  into `instances.fpp`/`topology.fpp` and opened from `configureTopology()`),
+  confirmed via a GDS-based integration test (`led_integration_tests.py`)
+  rather than manual `GPIOF_ODR` register polling
 - TIM2 measured at approximately 997.9 kHz over an undisturbed 30-second
   interval after PLL clock initialization
 - The 100 Hz timer tick and rate-group tick counters remained synchronized
@@ -143,10 +146,17 @@ the bootstrap allocation pool remain in AXI SRAM. The latest recorded
 
 | Region | Used | Remaining |
 | --- | ---: | ---: |
-| Flash | 560,160 bytes | 73.3% |
-| AXI SRAM `.bss` | 226,988 bytes | 56.7% |
+| Flash (`.text`+`.data`) | 645,708 bytes | 69.2% |
+| AXI SRAM `.bss` | 261,308 bytes | 50.1% |
 | DTCM `.dtcm_bss` | 8,584 bytes | 93.5% |
 | Bootstrap pool | 112,656 of 131,072 bytes | 14.1% |
+
+Flash and AXI SRAM `.bss` grew modestly from the Week 8 `led`/`gpioDriver`
+topology wiring and the Week 9 `Common`/`Real`/`Stub` driver split (a few new
+members per driver); DTCM `.dtcm_bss` is unchanged byte-for-byte. The
+bootstrap-pool row is a runtime allocation count rather than a static ELF
+section, so it's carried over from the last hardware run and still needs
+live re-verification.
 
 The reference deployment locks the bootstrap allocator after topology setup and
 wraps the C heap symbols so post-initialization allocations assert instead of
@@ -205,7 +215,13 @@ fprime-util check --coverage   # same, plus a line/function/branch coverage repo
 
 - Repeat the extended USART1 DMA and GDS soak at the corrected 480 MHz clock.
 - Validate TIM2 rollover, interrupt masking, and long-duration stability.
-- Connect `Drv::Stm32GpioDriver` to a deployment topology.
 - Continue hardware-in-the-loop automation for the STM32 target.
 - Add real persistent file support for the MicroFs-backed services; the current
   conservative configuration recognizes only `/bin<N>/file<M>` paths.
+- Re-verify the bootstrap-pool usage figure in "Memory and placement" live on
+  hardware; it's a runtime allocation count, not a static ELF section, so it
+  couldn't be refreshed by the host-only `baremetal-size` re-measurement.
+- `Svc.Seq`'s `SequenceArgumentsMaxSize` config constant isn't defined for the
+  native/host platform, so a project-wide `fprime-util check` from the repo
+  root fails on that unrelated module; run `fprime-util check` from each
+  driver's own directory (as shown above) until that gap is fixed.
