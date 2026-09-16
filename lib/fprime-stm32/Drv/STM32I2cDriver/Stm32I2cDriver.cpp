@@ -1,26 +1,94 @@
 // ======================================================================
 // \title  Stm32I2cDriver.cpp
 // \author ivanlara
-// \brief  HAL boundary for the STM32H7 I2C1 blocking master driver (real
+// \brief  HAL boundary for the STM32H7 I2C blocking master driver (real
 //         hardware implementation, stm32h7 target only). This is the only
 //         file in this driver allowed to include i2c.h/HAL_I2C_* -- see
 //         Stm32I2cDriverStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
 #include <lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
+#include <Fw/Types/Assert.hpp>
 
 #include "i2c.h"
 
+namespace {
+
+// CubeMX-computed I2C1 Timing register presets for this project's actual D2PCLK1 peripheral clock.
+constexpr uint32_t I2C_TIMING_STANDARD_100KHZ = 0x307075B1U;
+constexpr uint32_t I2C_TIMING_FAST_400KHZ = 0x00B03FDBU;
+
+//! Single-instance HAL handle pointer, set once in the real hwOpen() and
+//! used by every subsequent hw* call -- mirrors Stm32UartDriver's s_huart.
+I2C_HandleTypeDef* s_hi2c = nullptr;
+
+//! Convert a HAL-free I2cInstance to the corresponding HAL handle. Only
+//! I2c1 has a CubeMX-generated handle in this project today.
+I2C_HandleTypeDef* toHalHandle(Stm32::I2cInstance instance) {
+    switch (instance) {
+        case Stm32::I2cInstance::I2c1:
+            return &hi2c1;
+        case Stm32::I2cInstance::I2c2:
+        case Stm32::I2cInstance::I2c3:
+        case Stm32::I2cInstance::I2c4:
+        default:
+            FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
+            return nullptr;
+    }
+}
+
+//! Call the CubeMX-generated init function for the selected instance.
+void callInstanceInit(Stm32::I2cInstance instance) {
+    switch (instance) {
+        case Stm32::I2cInstance::I2c1:
+            MX_I2C1_Init();
+            return;
+        case Stm32::I2cInstance::I2c2:
+        case Stm32::I2cInstance::I2c3:
+        case Stm32::I2cInstance::I2c4:
+        default:
+            FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
+    }
+}
+
+//! Map a requested bus speed preset to its CubeMX-computed Timing value.
+uint32_t toTiming(Stm32::I2cBusSpeed busSpeed) {
+    switch (busSpeed) {
+        case Stm32::I2cBusSpeed::Standard:
+            return I2C_TIMING_STANDARD_100KHZ;
+        case Stm32::I2cBusSpeed::Fast:
+        default:
+            return I2C_TIMING_FAST_400KHZ;
+    }
+}
+
+}  // namespace
+
 namespace Stm32 {
 
-bool Stm32I2cDriver ::hwOpen() {
-    MX_I2C1_Init();
+bool Stm32I2cDriver ::hwOpen(I2cInstance instance, I2cBusSpeed busSpeed) {
+    I2C_HandleTypeDef* const halHandle = toHalHandle(instance);
+
+    // MX_I2Cn_Init() traps in Error_Handler() on failure rather than
+    // returning a status (matches every other CubeMX-generated
+    // MX_*_Init() in this project).
+    callInstanceInit(instance);
+
+    const uint32_t timing = toTiming(busSpeed);
+    if (timing != halHandle->Init.Timing) {
+        halHandle->Init.Timing = timing;
+        if (HAL_I2C_Init(halHandle) != HAL_OK) {
+            return false;
+        }
+    }
+
+    s_hi2c = halHandle;
     return true;
 }
 
 bool Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
     const HAL_StatusTypeDef status =
-        HAL_I2C_Master_Transmit(&hi2c1, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
+        HAL_I2C_Master_Transmit(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
     if (status != HAL_OK) {
         Fw::LogStringArg _op("Master_Transmit");
         this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
@@ -31,7 +99,7 @@ bool Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
 
 bool Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
     const HAL_StatusTypeDef status =
-        HAL_I2C_Master_Receive(&hi2c1, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
+        HAL_I2C_Master_Receive(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
     if (status != HAL_OK) {
         Fw::LogStringArg _op("Master_Receive");
         this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
@@ -41,7 +109,7 @@ bool Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
 }
 
 bool Stm32I2cDriver ::hwIsAddressNack() {
-    return (HAL_I2C_GetError(&hi2c1) & HAL_I2C_ERROR_AF) != 0U;
+    return (HAL_I2C_GetError(s_hi2c) & HAL_I2C_ERROR_AF) != 0U;
 }
 
 }  // namespace Stm32
