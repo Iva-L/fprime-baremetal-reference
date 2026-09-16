@@ -11,6 +11,16 @@ TEST(Nominal, OpenSuccess) {
     tester.testOpenSuccess();
 }
 
+TEST(Nominal, OpenFailure) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testOpenFailure();
+}
+
+TEST(Nominal, SendInvalidBuffer) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testSendInvalidBuffer();
+}
+
 TEST(Nominal, SendFits) {
     Stm32::Stm32UartDriverTester tester;
     tester.testSendFits();
@@ -26,6 +36,26 @@ TEST(Nominal, PollDrainsTx) {
     tester.testPollDrainsTx();
 }
 
+TEST(Nominal, PollTxHwStartFailure) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testPollTxHwStartFailure();
+}
+
+TEST(Nominal, PollTxBusyThenComplete) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testPollTxBusyThenComplete();
+}
+
+TEST(Nominal, TxWatchdogTimeout) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testTxWatchdogTimeout();
+}
+
+TEST(Nominal, RecvReturnIn) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testRecvReturnIn();
+}
+
 TEST(Nominal, PollDrainsRx) {
     Stm32::Stm32UartDriverTester tester;
     tester.testPollDrainsRx();
@@ -36,9 +66,19 @@ TEST(Nominal, PollRxNoBuffers) {
     tester.testPollRxNoBuffers();
 }
 
-TEST(Nominal, UartErrorRecovery) {
+TEST(Nominal, PollRxRingFull) {
     Stm32::Stm32UartDriverTester tester;
-    tester.testUartErrorRecovery();
+    tester.testPollRxRingFull();
+}
+
+TEST(Nominal, UartErrorRecoveryRxOnly) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testUartErrorRecoveryRxOnly();
+}
+
+TEST(Nominal, UartErrorRecoveryDmaError) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testUartErrorRecoveryDmaError();
 }
 
 int main(int argc, char** argv) {
