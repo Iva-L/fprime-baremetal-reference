@@ -2,14 +2,14 @@
 
 ## 1. Introduction
 
-`Stm32I2cDriver` is a bare-metal implementation of the [`Drv.I2c`](../../../fprime/Drv/Interfaces/I2c.fpp) interface for the STM32H7's I2C1 peripheral. It is a raw bus-master driver only: `write`/`read`/`writeRead` map directly onto blocking (polled) `HAL_I2C_Master_Transmit()`/`HAL_I2C_Master_Receive()` calls against whatever 7-bit address the caller supplies. There is no sensor-specific register model layered on top -- a sensor component (or a topology-level test command) is expected to drive this component's ports directly with the sensor's own register addressing convention.
+`Stm32I2cDriver` is a bare-metal implementation of the [`Drv.I2c`](../../../fprime/Drv/Interfaces/I2c.fpp) interface for an STM32H7 I2C peripheral, selected per instance at `open()` time. It is a raw bus-master driver only: `write`/`read`/`writeRead` map directly onto blocking (polled) `HAL_I2C_Master_Transmit()`/`HAL_I2C_Master_Receive()` calls against whatever 7-bit address the caller supplies. There is no sensor-specific register model layered on top -- a sensor component (or a topology-level test command) is expected to drive this component's ports directly with the sensor's own register addressing convention.
 
 ## 2. Requirements
 
 | Name | Description | Validation |
 |---|---|---|
 | STM32-I2C-COMP-001 | Shall implement the `Drv.I2c` interface | inspection |
-| STM32-I2C-COMP-002 | Shall configure I2C1 (via `MX_I2C1_Init()`) and reject transactions issued before `open()` | inspection |
+| STM32-I2C-COMP-002 | Shall configure a caller-selected I2C instance (via `MX_I2Cn_Init()`) at a caller-selected bus speed preset, and reject transactions issued before `open()` | inspection |
 | STM32-I2C-COMP-003 | Shall perform a blocking write to a 7-bit slave address, bounded by a 10 ms transaction watchdog | inspection |
 | STM32-I2C-COMP-004 | Shall perform a blocking read from a 7-bit slave address, bounded by a 10 ms transaction watchdog | inspection |
 | STM32-I2C-COMP-005 | Shall perform a write followed by a read for the same address without requiring a second port invocation | inspection |
@@ -29,9 +29,15 @@ Following the convention in `lib/fprime-stm32/README.md`, this driver splits int
 - `Stm32I2cDriver.cpp` -- the real HAL boundary (`hwOpen`/`hwMasterTransmit`/`hwMasterReceive`/`hwIsAddressNack`), built only for the `stm32h7` target. The only file allowed to include `i2c.h`/call `HAL_I2C_*`.
 - `Stm32I2cDriverStub.cpp` -- the same boundary methods against injectable/observable stub state, built for host UT and any non-`stm32h7` build. Never included in a flight build.
 
-### 3.3 `open()`
+### 3.3 `open(instance, busSpeed)`
 
-Calls `MX_I2C1_Init()` (the CubeMX-generated I2C1/GPIO/clock configuration in `lib/fprime-stm32/src/i2c.c`) and marks the driver ready. `MX_I2C1_Init()` traps in `Error_Handler()` on failure rather than returning a status, matching every other `MX_*_Init()` in this project, so `open()` cannot itself observe an init failure -- only that boot never returns.
+`open()` takes an `I2cInstance` (`I2c1`/`I2c2`/`I2c3`/`I2c4`, mirroring `Stm32UartDriver`'s `UsartInstance` switch) and an `I2cBusSpeed` preset (`Standard`/`Fast`, defaulting to `Fast` to match this project's current configuration). It calls the CubeMX-generated `MX_I2Cn_Init()` for the selected instance (I2C1/GPIO/clock configuration in `lib/fprime-stm32/src/i2c.c`), then applies the requested speed by overwriting `Init.Timing` and re-running `HAL_I2C_Init()` if it differs from what `MX_I2Cn_Init()` just applied.
+
+Only `I2c1` has a CubeMX-generated handle/init function in this project today -- selecting `I2c2`/`I2c3`/`I2c4` asserts in the real HAL boundary (`Stm32I2cDriver.cpp`'s `toHalHandle()`/`callInstanceInit()`). Adding a second instance for a different board only requires generating that peripheral's CubeMX config and one switch case in each of those two functions; the header, `Common.cpp`, and the `Stub` are already instance-agnostic.
+
+Unlike UART's `BaudRate` (computed at runtime by `HAL_UART_Init()` from the peripheral clock), the STM32H7 I2C `Timing` register has no closed-form runtime formula in the HAL. `I2cBusSpeed`'s two presets map to two CubeMX-computed constants for this project's actual D2PCLK1 clock (`0x00B03FDB` for Fast, `0x307075B1` for Standard -- the latter was CubeMX's original preset before the "Increased I2C clock speed to 400 kHz" commit raised it). A third preset can only be added once CubeMX has actually generated its Timing value for this clock tree -- do not hand-derive one.
+
+`MX_I2Cn_Init()` traps in `Error_Handler()` on failure rather than returning a status, matching every other `MX_*_Init()` in this project, so `open()` cannot observe a failure there -- only the speed-override `HAL_I2C_Init()` call (when the requested preset differs from CubeMX's default) has a real failure path.
 
 ### 3.4 `write`/`read`/`writeRead`
 
@@ -43,7 +49,7 @@ Each handler asserts the caller's `Fw::Buffer`(s) are non-null and fit in a `U16
 
 ```cpp
 // configureTopology():
-i2cDriver.open();
+i2cDriver.open(Stm32::I2cInstance::I2c1, Stm32::I2cBusSpeed::Fast);
 
 // raw sensor probe/register read, e.g. from a test command or adapter component:
 Drv::I2cStatus status = i2cDriver.get_write_InputPort(0)->invoke(sensorAddr, regAddrBuffer);

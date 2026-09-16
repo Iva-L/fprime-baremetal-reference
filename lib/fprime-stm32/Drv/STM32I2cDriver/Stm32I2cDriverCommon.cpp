@@ -22,8 +22,8 @@ Stm32I2cDriver ::Stm32I2cDriver(const char* const compName) : Stm32I2cDriverComp
 
 Stm32I2cDriver ::~Stm32I2cDriver() {}
 
-Fw::Success Stm32I2cDriver ::open() {
-    if (!this->hwOpen()) {
+Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
+    if (!this->hwOpen(instance, busSpeed)) {
         return Fw::Success::FAILURE;
     }
     this->m_opened = true;
