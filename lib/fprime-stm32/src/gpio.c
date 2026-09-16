@@ -48,7 +48,6 @@
      PI0   ------> FMC_D24
      PI7   ------> FMC_D29
      PE1   ------> FMC_NBL1
-     PB6   ------> I2C1_SCL
      PB4 (NJTRST)   ------> DEBUG_JTRST
      PK4   ------> LTDC_B5
      PG11   ------> ETH_TX_EN
@@ -63,7 +62,6 @@
      PC14-OSC32_IN (OSC32_IN)   ------> RCC_OSC32_IN
      PE2   ------> SAI4_CK1
      PE0   ------> FMC_NBL0
-     PB7   ------> I2C1_SDA
      PB3 (JTDO/TRACESWO)   ------> DEBUG_JTDO-SWO
      PK6   ------> LTDC_B7
      PK3   ------> LTDC_B4
@@ -309,14 +307,6 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF12_FMC;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : I2C1_SCL_Pin I2C1_SDA_Pin */
-  GPIO_InitStruct.Pin = I2C1_SCL_Pin|I2C1_SDA_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : RMII_TX_EN_Pin RMII_TXD1_Pin RMII_TXD0_Pin */
   GPIO_InitStruct.Pin = RMII_TX_EN_Pin|RMII_TXD1_Pin|RMII_TXD0_Pin;

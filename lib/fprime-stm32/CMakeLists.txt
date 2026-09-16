@@ -18,6 +18,7 @@ set(FPRIME_STM32_HAL_SOURCES
     src/stm32h7_clock.c
     src/dma.c
     src/gpio.c
+    src/i2c.c
     src/tim.c
     src/tim2_clock.cpp
     src/usart.c
@@ -29,6 +30,8 @@ set(FPRIME_STM32_HAL_SOURCES
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c
