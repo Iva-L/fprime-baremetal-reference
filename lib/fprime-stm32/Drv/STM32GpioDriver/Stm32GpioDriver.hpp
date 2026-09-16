@@ -12,6 +12,7 @@
 #include <Fw/Types/DirectionEnumAc.hpp>
 #include <Fw/Types/SuccessEnumAc.hpp>
 #include <Fw/Types/LogicEnumAc.hpp>
+#include <Fw/Types/Assert.hpp>
 
 namespace Stm32 {
 

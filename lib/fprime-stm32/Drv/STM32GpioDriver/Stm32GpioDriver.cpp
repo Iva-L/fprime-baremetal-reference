@@ -82,6 +82,8 @@ namespace Stm32 {
 bool Stm32GpioDriver ::hwConfigurePin(GpioPort port, U16 pin, Fw::Direction mode, Fw::Logic defaultState) {
     GPIO_TypeDef* halPort = toHalPort(port);
 
+    FW_ASSERT(halPort != nullptr);
+
     enableGpioClock(halPort);
 
     if (mode == Fw::Direction::OUT) {
