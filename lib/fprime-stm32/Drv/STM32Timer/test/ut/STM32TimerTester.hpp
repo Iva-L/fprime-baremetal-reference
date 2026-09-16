@@ -52,6 +52,21 @@ class STM32TimerTester final : public STM32TimerGTestBase {
     //! A compare target that has already elapsed is detected as an overrun
     void testOverrunDetection();
 
+    //! now == nextTarget exactly (zero elapsed) still counts as an overrun,
+    //! per the real driver's `>= 0` signed-difference check
+    void testPollWithTickNoOverrunAtExactBoundary();
+
+  private:
+    // ----------------------------------------------------------------------
+    // Test support
+    // ----------------------------------------------------------------------
+
+    //! Reset every Stub_* global back to its documented default so each
+    //! test starts from a known, hermetic state regardless of run order --
+    //! these are shared, process-wide globals (see STM32TimerStub.cpp), not
+    //! per-Tester state.
+    void resetStubState();
+
   private:
     // ----------------------------------------------------------------------
     // Helper functions
