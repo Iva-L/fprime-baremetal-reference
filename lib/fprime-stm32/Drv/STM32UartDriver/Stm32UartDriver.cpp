@@ -1,7 +1,7 @@
 // ======================================================================
 // \title  Stm32UartDriver.cpp
 // \author ivanlara
-// \brief  HAL boundary for the STM32H7 USART1 DMA-backed byte stream
+// \brief  HAL boundary for the STM32H7 USART/UART DMA-backed byte stream
 //         driver (real hardware implementation, stm32h7 target only).
 //         This is the only file in this driver allowed to include
 //         CacheMaintenance.hpp/dma.h/usart.h -- see
@@ -18,52 +18,118 @@ namespace {
 
 //! Single-instance callback trampoline: the HAL callbacks below are free
 //! functions with no user-context pointer, and the topology only ever
-//! instantiates one Stm32UartDriver against the one physical USART1
-//! peripheral.
+//! instantiates one Stm32UartDriver per physical USART/UART peripheral.
 Stm32::Stm32UartDriver* s_instance = nullptr;
+
+UART_HandleTypeDef* s_huart = nullptr;
+
+//! Convert a HAL-free UsartInstance to the corresponding HAL handle.
+UART_HandleTypeDef* toHalHandle(Stm32::UsartInstance instance) {
+    switch (instance) {
+        case Stm32::UsartInstance::Usart1:
+            return &huart1;
+        case Stm32::UsartInstance::Usart2:
+        case Stm32::UsartInstance::Usart3:
+        case Stm32::UsartInstance::Uart4:
+        case Stm32::UsartInstance::Uart5:
+        case Stm32::UsartInstance::Usart6:
+        case Stm32::UsartInstance::Uart7:
+        case Stm32::UsartInstance::Uart8:
+        default:
+            FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
+            return nullptr;
+    }
+}
+
+//! Map a HAL-free UsartInstance to its NVIC interrupt number.
+IRQn_Type toIrqn(Stm32::UsartInstance instance) {
+    switch (instance) {
+        case Stm32::UsartInstance::Usart1:
+            return USART1_IRQn;
+        case Stm32::UsartInstance::Usart2:
+            return USART2_IRQn;
+        case Stm32::UsartInstance::Usart3:
+            return USART3_IRQn;
+        case Stm32::UsartInstance::Uart4:
+            return UART4_IRQn;
+        case Stm32::UsartInstance::Uart5:
+            return UART5_IRQn;
+        case Stm32::UsartInstance::Usart6:
+            return USART6_IRQn;
+        case Stm32::UsartInstance::Uart7:
+            return UART7_IRQn;
+        case Stm32::UsartInstance::Uart8:
+            return UART8_IRQn;
+        default:
+            FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
+            return USART1_IRQn;
+    }
+}
+
+//! Call the CubeMX-generated init function for the selected instance.
+void callInstanceInit(Stm32::UsartInstance instance) {
+    switch (instance) {
+        case Stm32::UsartInstance::Usart1:
+            MX_USART1_UART_Init();
+            return;
+        case Stm32::UsartInstance::Usart2:
+        case Stm32::UsartInstance::Usart3:
+        case Stm32::UsartInstance::Uart4:
+        case Stm32::UsartInstance::Uart5:
+        case Stm32::UsartInstance::Usart6:
+        case Stm32::UsartInstance::Uart7:
+        case Stm32::UsartInstance::Uart8:
+        default:
+            FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
+    }
+}
 
 }  // namespace
 
 extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef* huart) {
     FW_ASSERT(huart != nullptr);
-    if (huart->Instance == USART1 && s_instance != nullptr) {
+    if (huart == s_huart && s_instance != nullptr) {
         s_instance->signalTxComplete();
     }
 }
 
 extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef* huart, uint16_t Size) {
     FW_ASSERT(huart != nullptr);
-    if (huart->Instance == USART1 && s_instance != nullptr) {
+    if (huart == s_huart && s_instance != nullptr) {
         s_instance->signalRxChunk(Size);
     }
 }
 
 extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
     FW_ASSERT(huart != nullptr);
-    if (huart->Instance == USART1 && s_instance != nullptr) {
+    if (huart == s_huart && s_instance != nullptr) {
         s_instance->signalUartError(huart->ErrorCode);
     }
 }
 
 namespace Stm32 {
 
-bool Stm32UartDriver ::hwOpen(I32 IRQn, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate,
+bool Stm32UartDriver ::hwOpen(UsartInstance instance, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate,
                                U32& outActualBaudRate) {
     (void)requestedBaudRate;  // not used to configure the peripheral: CubeMX fixes the baud in usart.c
 
-    // DMA1 clock/NVIC must be enabled before HAL_UART_MspInit() (invoked from
-    // MX_USART1_UART_Init() -> HAL_UART_Init()) links and initializes the
-    // USART1 TX/RX DMA streams.
-    MX_DMA_Init();
-    MX_USART1_UART_Init();
+    UART_HandleTypeDef* const halHandle = toHalHandle(instance);
+    const IRQn_Type irqn = toIrqn(instance);
 
-    // Not configured by CubeMX: the USART1 global interrupt is required for
+    // DMA1 clock/NVIC must be enabled before HAL_UART_MspInit() (invoked from
+    // MX_USARTn_UART_Init() -> HAL_UART_Init()) links and initializes the
+    // selected instance's TX/RX DMA streams.
+    MX_DMA_Init();
+    callInstanceInit(instance);
+
+    // Not configured by CubeMX: the USART global interrupt is required for
     // HAL_UARTEx_ReceiveToIdle_DMA()'s idle-line detection, which only the
     // USART peripheral (not the DMA streams) can signal.
-    HAL_NVIC_SetPriority(static_cast<IRQn_Type>(IRQn), preemptPriority, subPriority);
-    HAL_NVIC_EnableIRQ(static_cast<IRQn_Type>(IRQn));
+    HAL_NVIC_SetPriority(irqn, preemptPriority, subPriority);
+    HAL_NVIC_EnableIRQ(irqn);
 
     s_instance = this;
+    s_huart = halHandle;
     this->m_txDmaBusy = false;
     this->m_rxChunkReady = false;
     this->m_rxChunkLen = 0;
@@ -77,14 +143,14 @@ bool Stm32UartDriver ::hwOpen(I32 IRQn, U32 preemptPriority, U32 subPriority, U3
         return false;
     }
 
-    outActualBaudRate = huart1.Init.BaudRate;
+    outActualBaudRate = halHandle->Init.BaudRate;
     return true;
 }
 
 bool Stm32UartDriver ::hwStartTx(const U8* data, FwSizeType len) {
     Stm32::CleanDCacheForDma(data, len);
     const HAL_StatusTypeDef status =
-        HAL_UART_Transmit_DMA(&huart1, const_cast<U8*>(data), static_cast<uint16_t>(len));
+        HAL_UART_Transmit_DMA(s_huart, const_cast<U8*>(data), static_cast<uint16_t>(len));
     if (status != HAL_OK) {
         Fw::LogStringArg _op("Transmit_DMA");
         this->log_WARNING_HI_HalError(_op, static_cast<I32>(status));
@@ -94,7 +160,7 @@ bool Stm32UartDriver ::hwStartTx(const U8* data, FwSizeType len) {
 }
 
 void Stm32UartDriver ::hwAbortTx() {
-    (void)HAL_UART_AbortTransmit(&huart1);
+    (void)HAL_UART_AbortTransmit(s_huart);
 }
 
 void Stm32UartDriver ::hwInvalidateRxStaging() {
@@ -103,16 +169,16 @@ void Stm32UartDriver ::hwInvalidateRxStaging() {
 
 I32 Stm32UartDriver ::hwRestartRx() {
     const HAL_StatusTypeDef status =
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, this->m_rxStaging, static_cast<uint16_t>(RX_STAGING_SIZE));
+        HAL_UARTEx_ReceiveToIdle_DMA(s_huart, this->m_rxStaging, static_cast<uint16_t>(RX_STAGING_SIZE));
     return static_cast<I32>(status);
 }
 
 void Stm32UartDriver ::hwAbortRx() {
-    (void)HAL_UART_AbortReceive(&huart1);
+    (void)HAL_UART_AbortReceive(s_huart);
 }
 
 void Stm32UartDriver ::hwClearUartError() {
-    huart1.ErrorCode = HAL_UART_ERROR_NONE;
+    s_huart->ErrorCode = HAL_UART_ERROR_NONE;
 }
 
 void Stm32UartDriver ::hwClassifyUartError(U32 errorCode, bool& isRxAffecting, bool& isDmaAffecting) {

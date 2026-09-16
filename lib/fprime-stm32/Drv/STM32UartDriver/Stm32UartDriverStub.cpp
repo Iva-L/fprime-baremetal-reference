@@ -14,8 +14,10 @@
 #include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 
 // Injectable stub state for unit tests
-extern bool Stub_hwOpenSucceeds = true;        // simulates MX_DMA_Init()/MX_USART1_UART_Init()/initial RX arm
+extern bool Stub_hwOpenSucceeds = true;        // simulates MX_DMA_Init()/MX_USARTn_UART_Init()/initial RX arm
 extern I32 Stub_hwOpenFailureStatus = 1;       // HAL_StatusTypeDef value reported when hwOpen fails (1 == HAL_ERROR)
+extern Stm32::UsartInstance Stub_lastOpenedInstance =
+    Stm32::UsartInstance::Usart1;              // instance most recently passed to hwOpen()
 
 extern bool Stub_hwStartTxSucceeds = true;     // simulates HAL_UART_Transmit_DMA() acceptance
 extern I32 Stub_hwStartTxFailureStatus = 1;    // HAL_StatusTypeDef value reported when hwStartTx fails
@@ -43,8 +45,10 @@ constexpr U32 DMA_AFFECTING_ERROR_MASK = 0x10U;
 
 namespace Stm32 {
 
-bool Stm32UartDriver ::hwOpen(I32 IRQn, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate,
+bool Stm32UartDriver ::hwOpen(UsartInstance instance, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate,
                                U32& outActualBaudRate) {
+    Stub_lastOpenedInstance = instance;
+
     if (!Stub_hwOpenSucceeds) {
         // Mirrors the real hwOpen(): the only HAL boundary method that
         // knows which call failed, so it emits HalError itself.

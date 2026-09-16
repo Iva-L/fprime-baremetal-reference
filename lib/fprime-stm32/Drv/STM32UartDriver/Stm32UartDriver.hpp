@@ -14,24 +14,27 @@
 
 namespace Stm32 {
 
+//! USART/UART peripheral identifier, covering every instance present on an STM32H753
+enum class UsartInstance { Usart1, Usart2, Usart3, Uart4, Uart5, Usart6, Uart7, Uart8 };
+
 class Stm32UartDriver final : public Stm32UartDriverComponentBase {
   public:
     //! Construct object Stm32UartDriver
     explicit Stm32UartDriver(const char* const compName);
 
-    //! Configure USART1 (via the CubeMX-generated MX_DMA_Init()/
-    //! MX_USART1_UART_Init(), fixed at the generated 115200 8N1 baud/frame
+    //! Configure the selected USART/UART instance (via the CubeMX-generated
+    //! MX_DMA_Init()/MX_USARTn_UART_Init(), fixed at the generated baud/frame
     //! settings in lib/fprime-stm32/src/usart.c) and arm the first RX
     //! reception. Must be called once from configureTopology().
     //! \param allocationSize size of the AXI SRAM ring buffers
-    //! \param IRQn NVIC interrupt number for the USART1 global interrupt (the
-    //!        real IRQn_Type enum value, widened to a plain integer so this
-    //!        header carries no CMSIS dependency -- the real driver's .cpp
-    //!        casts it back before calling the NVIC HAL)
-    //! \param preemptPriority NVIC preempt priority for the USART1 global interrupt
-    //! \param subPriority NVIC subpriority for the USART1 global interrupt
-    //! \param baudRate desired baud rate for the USART1 peripheral
-    Fw::Success open(FwSizeType allocationSize, I32 IRQn, U32 preemptPriority, U32 subPriority, U32 baudRate);
+    //! \param instance which USART/UART peripheral this driver instance owns;
+    //!        the NVIC interrupt number is derived from this internally, so
+    //!        the caller cannot pass a mismatched instance/IRQn pair
+    //! \param preemptPriority NVIC preempt priority for the instance's global interrupt
+    //! \param subPriority NVIC subpriority for the instance's global interrupt
+    //! \param baudRate desired baud rate for the peripheral
+    Fw::Success open(FwSizeType allocationSize, UsartInstance instance, U32 preemptPriority, U32 subPriority,
+                      U32 baudRate);
     
     //! One bounded step of the DMA state machine: consume ISR-latched
     //! completion/error state, run cache maintenance, start the next transfer,
@@ -67,12 +70,14 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     // unit tests).
     // ----------------------------------------------------------------------
 
-    //! Run MX_DMA_Init()/MX_USART1_UART_Init(), configure the USART1 global
-    //! NVIC interrupt, and arm the first RX reception. Returns true on
-    //! success (matches today's HAL_OK checks) and reports the peripheral's
-    //! actual configured baud via outActualBaudRate; emits HalError itself
-    //! on failure since only this method knows which HAL call failed.
-    bool hwOpen(I32 IRQn, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate, U32& outActualBaudRate);
+    //! Run MX_DMA_Init()/MX_USARTn_UART_Init() for the selected instance,
+    //! configure that instance's global NVIC interrupt (IRQn derived from
+    //! `instance`), and arm the first RX reception. Returns true on success
+    //! (matches today's HAL_OK checks) and reports the peripheral's actual
+    //! configured baud via outActualBaudRate; emits HalError itself on
+    //! failure since only this method knows which HAL call failed.
+    bool hwOpen(UsartInstance instance, U32 preemptPriority, U32 subPriority, U32 requestedBaudRate,
+                U32& outActualBaudRate);
 
     //! Clean the D-cache over [data, data + len) and start a TX DMA
     //! transfer out of it. Returns true if the HAL accepted the transfer.

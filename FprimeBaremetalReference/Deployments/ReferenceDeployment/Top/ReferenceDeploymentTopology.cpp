@@ -69,7 +69,7 @@ void configureTopology() {
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
 
-    const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, static_cast<I32>(USART1_IRQn),
+    const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32::UsartInstance::Usart1,
                                                         USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY,
                                                         BAUD_RATE);
     if(comDriverOpened == Fw::Success::FAILURE) {

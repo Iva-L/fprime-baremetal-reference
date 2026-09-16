@@ -52,15 +52,15 @@ void Stm32UartDriver ::signalUartError(U32 errorCode) {
     this->m_uartErrorPending = true;
 }
 
-Fw::Success Stm32UartDriver ::open(FwSizeType allocationSize, I32 IRQn, U32 preemptPriority, U32 subPriority,
-                                    U32 baudRate) {
+Fw::Success Stm32UartDriver ::open(FwSizeType allocationSize, UsartInstance instance, U32 preemptPriority,
+                                    U32 subPriority, U32 baudRate) {
     this->m_allocationSize = allocationSize;
 
     this->m_baudRate = baudRate;
     FW_ASSERT(this->m_baudRate > 0);
 
     U32 actualBaudRate = 0;
-    if (!this->hwOpen(IRQn, preemptPriority, subPriority, baudRate, actualBaudRate)) {
+    if (!this->hwOpen(instance, preemptPriority, subPriority, baudRate, actualBaudRate)) {
         return Fw::Success::FAILURE;
     }
 
