@@ -16,6 +16,11 @@ TEST(Nominal, OpenInputSuccess) {
     tester.testOpenInputSuccess();
 }
 
+TEST(Nominal, OpenFailure) {
+    Stm32::Stm32GpioDriverTester tester;
+    tester.testOpenFailure();
+}
+
 TEST(Nominal, AccessBeforeOpen) {
     Stm32::Stm32GpioDriverTester tester;
     tester.testAccessBeforeOpen();

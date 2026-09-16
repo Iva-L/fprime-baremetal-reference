@@ -46,6 +46,11 @@ class Stm32GpioDriverTester final : public Stm32GpioDriverGTestBase {
     //! open() as an INPUT succeeds and emits ConfigureSuccess
     void testOpenInputSuccess();
 
+    //! open() reports ConfigureError and leaves the driver unopened when the
+    //! HAL boundary reports the mode readback did not match (hwConfigurePin
+    //! failure injected via Stub_hwConfigurePin)
+    void testOpenFailure();
+
     //! gpioWrite/gpioRead before open() both report NOT_OPENED
     void testAccessBeforeOpen();
 
@@ -55,11 +60,22 @@ class Stm32GpioDriverTester final : public Stm32GpioDriverGTestBase {
     //! gpioRead on a pin opened as OUTPUT reports INVALID_MODE
     void testReadWrongMode();
 
-    //! gpioWrite on a pin opened as OUTPUT reports OP_OK
+    //! gpioWrite on a pin opened as OUTPUT reports OP_OK and drives the HAL
+    //! boundary with the correct level, observable via Stub_lastWrittenPinHigh
     void testWriteAfterOpen();
 
-    //! gpioRead on a pin opened as INPUT reports OP_OK
+    //! gpioRead on a pin opened as INPUT reports OP_OK and returns the level
+    //! injected via Stub_hwReadPin (both LOW and HIGH)
     void testReadAfterOpen();
+
+  private:
+    // ----------------------------------------------------------------------
+    // Test support
+    // ----------------------------------------------------------------------
+
+    //! Reset every Stub_* global back to its documented default so each test
+    //! starts from a known, hermetic state.
+    void resetStubState();
 
   private:
     // ----------------------------------------------------------------------
