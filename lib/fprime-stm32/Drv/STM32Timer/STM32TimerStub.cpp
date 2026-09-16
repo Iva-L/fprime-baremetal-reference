@@ -11,14 +11,26 @@
 
 #include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
 
+// Observable stub state for unit tests
+extern bool Stub_channelArmed = false;      // true once hwArmChannel() has run
+extern U32 Stub_lastArmedTarget = 0;        // compare value passed to the most recent
+                                            // hwArmChannel()/hwSetCompare() call
+extern U32 Stub_hwSetCompareCallCount = 0;  // number of hwSetCompare() reprograms
+
 namespace Stm32 {
 
-void STM32Timer ::hwArmChannel(U32 target) {}
+void STM32Timer ::hwArmChannel(U32 target) {
+    Stub_channelArmed = true;
+    Stub_lastArmedTarget = target;
+}
 
 U32 STM32Timer ::hwReadCounter() {
     return this->m_stubCounter;
 }
 
-void STM32Timer ::hwSetCompare(U32 target) {}
+void STM32Timer ::hwSetCompare(U32 target) {
+    Stub_lastArmedTarget = target;
+    Stub_hwSetCompareCallCount++;
+}
 
 }  // namespace Stm32
