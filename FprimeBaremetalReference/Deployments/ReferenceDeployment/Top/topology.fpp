@@ -35,6 +35,7 @@ module ReferenceDeployment {
     instance led
     instance gpioDriver
     instance i2cDriver
+    instance imuManager
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -137,6 +138,12 @@ module ReferenceDeployment {
       
       # led's gpioSet output is connected to gpioDriver's gpioWrite input
       led.gpioSet -> gpioDriver.gpioWrite
+    }
+
+    connections MpuImu {
+    imuManager.busWrite     -> i2cDriver.write
+    imuManager.busWriteRead -> i2cDriver.writeRead
+    rateGroup_1Hz.RateGroupMemberOut[8] -> imuManager.run
     }
 
   }
