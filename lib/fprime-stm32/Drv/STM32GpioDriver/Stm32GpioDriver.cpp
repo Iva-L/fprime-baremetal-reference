@@ -1,16 +1,51 @@
 // ======================================================================
 // \title  Stm32GpioDriver.cpp
 // \author ivanlara
-// \brief  cpp file for the STM32H7 bare-metal GPIO pin driver
+// \brief  HAL boundary for the STM32H7 bare-metal GPIO pin driver (real
+//         hardware implementation, stm32h7 target only). This is the only
+//         file in this driver allowed to include stm32h7xx_hal.h -- see
+//         Stm32GpioDriverStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
 #include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
 
+#include "stm32h7xx_hal.h"
+
 namespace {
+
+//! Map a HAL-free GpioPort identifier to the real CMSIS peripheral base.
+GPIO_TypeDef* toHalPort(Stm32::GpioPort port) {
+    switch (port) {
+        case Stm32::GpioPort::A:
+            return GPIOA;
+        case Stm32::GpioPort::B:
+            return GPIOB;
+        case Stm32::GpioPort::C:
+            return GPIOC;
+        case Stm32::GpioPort::D:
+            return GPIOD;
+        case Stm32::GpioPort::E:
+            return GPIOE;
+        case Stm32::GpioPort::F:
+            return GPIOF;
+        case Stm32::GpioPort::G:
+            return GPIOG;
+        case Stm32::GpioPort::H:
+            return GPIOH;
+        case Stm32::GpioPort::I:
+            return GPIOI;
+        case Stm32::GpioPort::J:
+            return GPIOJ;
+        case Stm32::GpioPort::K:
+            return GPIOK;
+        default:
+            FW_ASSERT(false, static_cast<FwAssertArgType>(port));
+            return nullptr;
+    }
+}
 
 //! Enable the AHB4 clock for whichever GPIO port is passed in
 void enableGpioClock(GPIO_TypeDef* port) {
-
     FW_ASSERT(port != nullptr);
 
     if (port == GPIOA) {
@@ -44,22 +79,15 @@ void enableGpioClock(GPIO_TypeDef* port) {
 
 namespace Stm32 {
 
-Stm32GpioDriver ::Stm32GpioDriver(const char* const compName)
-    : Stm32GpioDriverComponentBase(compName),
-      m_port(nullptr),
-      m_pin(0),
-      m_mode(Fw::Direction::IN),
-      m_opened(false) {}
+bool Stm32GpioDriver ::hwConfigurePin(GpioPort port, U16 pin, Fw::Direction mode, Fw::Logic defaultState) {
+    GPIO_TypeDef* halPort = toHalPort(port);
 
-Stm32GpioDriver ::~Stm32GpioDriver() {}
+    FW_ASSERT(halPort != nullptr);
 
-Fw::Success Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mode, Fw::Logic defaultState) {
-    FW_ASSERT(port != nullptr);
-
-    enableGpioClock(port);
+    enableGpioClock(halPort);
 
     if (mode == Fw::Direction::OUT) {
-        HAL_GPIO_WritePin(port, pin, (defaultState == Fw::Logic::HIGH) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(halPort, pin, (defaultState == Fw::Logic::HIGH) ? GPIO_PIN_SET : GPIO_PIN_RESET);
     }
 
     GPIO_InitTypeDef init = {};
@@ -67,46 +95,21 @@ Fw::Success Stm32GpioDriver ::open(GPIO_TypeDef* port, U16 pin, Fw::Direction mo
     init.Mode = (mode == Fw::Direction::OUT) ? GPIO_MODE_OUTPUT_PP : GPIO_MODE_INPUT;
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(port, &init);
+    HAL_GPIO_Init(halPort, &init);
 
     // Verify that the GPIO was successfully configured for the specified mode.
     const U32 position = POSITION_VAL(pin);
-    const U32 actualModeBits = (port->MODER >> (position * 2U)) & GPIO_MODE;
+    const U32 actualModeBits = (halPort->MODER >> (position * 2U)) & GPIO_MODE;
     const U32 expectedModeBits = init.Mode & GPIO_MODE;
-    if (actualModeBits != expectedModeBits) {
-        this->log_WARNING_HI_ConfigureError(pin, mode);
-        this->m_opened = false;
-        return Fw::Success::FAILURE;
-    }
-    
-    this->log_ACTIVITY_HI_ConfigureSuccess(pin, mode);
-    this->m_port = port;
-    this->m_pin = pin;
-    this->m_mode = mode;
-    this->m_opened = true;
-    return Fw::Success::SUCCESS;
+    return actualModeBits == expectedModeBits;
 }
 
-Drv::GpioStatus Stm32GpioDriver ::gpioRead_handler(FwIndexType portNum, Fw::Logic& state) {
-    if (!this->m_opened) {
-        return Drv::GpioStatus::NOT_OPENED;
-    }
-    if (this->m_mode != Fw::Direction::IN) {
-        return Drv::GpioStatus::INVALID_MODE;
-    }
-    state = (HAL_GPIO_ReadPin(this->m_port, this->m_pin) == GPIO_PIN_SET) ? Fw::Logic::HIGH : Fw::Logic::LOW;
-    return Drv::GpioStatus::OP_OK;
+bool Stm32GpioDriver ::hwReadPin(GpioPort port, U16 pin) {
+    return HAL_GPIO_ReadPin(toHalPort(port), pin) == GPIO_PIN_SET;
 }
 
-Drv::GpioStatus Stm32GpioDriver ::gpioWrite_handler(FwIndexType portNum, const Fw::Logic& state) {
-    if (!this->m_opened) {
-        return Drv::GpioStatus::NOT_OPENED;
-    }
-    if (this->m_mode != Fw::Direction::OUT) {
-        return Drv::GpioStatus::INVALID_MODE;
-    }
-    HAL_GPIO_WritePin(this->m_port, this->m_pin, (state == Fw::Logic::HIGH) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    return Drv::GpioStatus::OP_OK;
+void Stm32GpioDriver ::hwWritePin(GpioPort port, U16 pin, bool high) {
+    HAL_GPIO_WritePin(toHalPort(port), pin, high ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
 }  // namespace Stm32

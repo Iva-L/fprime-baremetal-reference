@@ -8,14 +8,14 @@ on:
 
 jobs:
   build-fprime-baremetal-reference:
-    name: Cross-Compile fprime-baremetal-reference (STM32H7)
+    name: Cross-Compile fprime-baremetal-reference and test (STM32H7)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive # Crucial to pull fprime-baremetal and fprime submodules
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -46,3 +46,28 @@ jobs:
         run: |
           # Builds the ReferenceDeployment executable
           fprime-util build stm32h7
+
+      - name: Generate Unit Test CMake Cache
+        run: |
+          # Generates build files for unit tests
+          fprime-util generate --ut
+
+      - name: Run Component/Led Host Tests
+        run: |
+          # Navigate to the Led component directory and run host tests
+          cd $GITHUB_WORKSPACE/FprimeBaremetalReference/Components/Led && fprime-util check --coverage
+
+      - name: Run Drv/STM32UartDriver Host Tests
+        run: |
+          # Navigate to the STM32UartDriver component directory and run host tests
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
+
+      - name: Run Drv/STM32Timer Host Tests
+        run: |
+          # Navigate to the STM32Timer component directory and run host tests
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
+          
+      - name: Run Drv/STM32GpioDriver Host Tests
+        run: |
+          # Navigate to the STM32GpioDriver component directory and run host tests
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage

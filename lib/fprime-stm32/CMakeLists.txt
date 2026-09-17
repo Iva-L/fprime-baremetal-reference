@@ -41,26 +41,33 @@ set(FPRIME_STM32_HAL_SOURCES
     Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart_ex.c
 )
 
-add_library(FprimeStm32 STATIC ${FPRIME_STM32_HAL_SOURCES})
+add_library(FprimeStm32Config INTERFACE)
+target_include_directories(FprimeStm32Config INTERFACE "${CMAKE_CURRENT_LIST_DIR}/config")
 
-target_include_directories(FprimeStm32 PUBLIC
-    "${PROJECT_SOURCE_DIR}"
-    "${CMAKE_BINARY_DIR}"
-    "${FPRIME_PROJECT_ROOT}"
-    "${CMAKE_CURRENT_BINARY_DIR}"
-    "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32UartDriver"
-    "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32Timer"
-    "${CMAKE_CURRENT_LIST_DIR}/config"
-    "${CMAKE_CURRENT_LIST_DIR}/include"
-    "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Include"
-    "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Device/ST/STM32H7xx/Include"
-    "${CMAKE_CURRENT_LIST_DIR}/Drivers/STM32H7xx_HAL_Driver/Inc"
-)
 
-target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER USE_PWR_LDO_SUPPLY)
+if (FPRIME_PLATFORM STREQUAL "stm32h7")
+    add_library(FprimeStm32 STATIC ${FPRIME_STM32_HAL_SOURCES})
 
-target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
+    target_include_directories(FprimeStm32 PUBLIC
+        "${PROJECT_SOURCE_DIR}"
+        "${CMAKE_BINARY_DIR}"
+        "${FPRIME_PROJECT_ROOT}"
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32UartDriver"
+        "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32Timer"
+        "${CMAKE_CURRENT_LIST_DIR}/config"
+        "${CMAKE_CURRENT_LIST_DIR}/include"
+        "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Include"
+        "${CMAKE_CURRENT_LIST_DIR}/Drivers/CMSIS/Device/ST/STM32H7xx/Include"
+        "${CMAKE_CURRENT_LIST_DIR}/Drivers/STM32H7xx_HAL_Driver/Inc"
+    )
 
-target_link_libraries(FprimeStm32 PUBLIC PlatformStm32h7)
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")
+    target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER USE_PWR_LDO_SUPPLY)
+
+    target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
+
+    target_link_libraries(FprimeStm32 PUBLIC PlatformStm32h7)
+    add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")
+endif()
+
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Drv")

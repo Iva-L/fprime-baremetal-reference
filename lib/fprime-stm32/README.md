@@ -114,7 +114,10 @@ included:
 - Topology setup and all active-component queues created successfully
 - No hits on assertion, abort, exit, HardFault, BusFault, or fatal-handler
   breakpoints during the recorded endurance runs
-- PF10 LED activity confirmed through live GDB reads of `GPIOF_ODR`
+- PF10 LED activity, driven exclusively through `Drv::Stm32GpioDriver` (wired
+  into `instances.fpp`/`topology.fpp` and opened from `configureTopology()`),
+  confirmed via a GDS-based integration test (`led_integration_tests.py`)
+  rather than manual `GPIOF_ODR` register polling
 - TIM2 measured at approximately 997.9 kHz over an undisturbed 30-second
   interval after PLL clock initialization
 - The 100 Hz timer tick and rate-group tick counters remained synchronized
@@ -143,21 +146,82 @@ the bootstrap allocation pool remain in AXI SRAM. The latest recorded
 
 | Region | Used | Remaining |
 | --- | ---: | ---: |
-| Flash | 560,160 bytes | 73.3% |
-| AXI SRAM `.bss` | 226,988 bytes | 56.7% |
+| Flash (`.text`+`.data`) | 645,708 bytes | 69.2% |
+| AXI SRAM `.bss` | 261,308 bytes | 50.1% |
 | DTCM `.dtcm_bss` | 8,584 bytes | 93.5% |
 | Bootstrap pool | 112,656 of 131,072 bytes | 14.1% |
+
+Flash and AXI SRAM `.bss` grew modestly from the Week 8 `led`/`gpioDriver`
+topology wiring and the Week 9 `Common`/`Real`/`Stub` driver split (a few new
+members per driver); DTCM `.dtcm_bss` is unchanged byte-for-byte. The
+bootstrap-pool row is a runtime allocation count rather than a static ELF
+section, so it's carried over from the last hardware run and still needs
+live re-verification.
 
 The reference deployment locks the bootstrap allocator after topology setup and
 wraps the C heap symbols so post-initialization allocations assert instead of
 silently using an unbounded heap. New components should be evaluated against
 both the AXI SRAM margin and the remaining bootstrap-pool capacity.
 
+## Host unit testing (`fprime-util check`)
+
+Every driver under `Drv/` splits into three files sharing one HAL-free
+header, so `fprime-util check` can compile and run its GTest unit test on
+the host (x86_64 Linux) without any ARM/CMSIS toolchain:
+
+- `<Driver>Common.cpp` — hardware-independent logic (validation, ring
+  buffers, state machines, event/telemetry emission). Always built, on
+  every platform. This is where unit tests get real coverage.
+- `<Driver>.cpp` — the real implementation, built only for the `stm32h7`
+  target. Every HAL/CMSIS touch (register access, `HAL_*` calls, ISR
+  callbacks) lives here behind a small set of private boundary methods
+  (named `hw*`) declared in the header. This is the only file allowed to
+  `#include` a vendor CMSIS/HAL header.
+- `<Driver>Stub.cpp` — built only for host unit tests. Implements the same
+  `hw*` boundary methods with fixed, no-HAL-dependency behavior (e.g.
+  "always succeeds," a settable fake counter). Never included in a
+  flight build.
+
+Each driver's `CMakeLists.txt` always registers the production module
+(`register_fprime_module`/`register_fprime_library`) — only the choice of
+`<Driver>.cpp` vs `<Driver>Stub.cpp` (and the matching `DEPENDS`) is
+platform-conditional — and always registers `register_fprime_ut` (never
+gated by `restrict_platforms`, which would make the UT target itself
+unreachable and `fprime-util check` fail with `NoTargetFoundException`).
+`FprimeStm32` (the real vendor HAL static library) and its `Os/`
+subdirectory are gated to the `stm32h7` target in this directory's own
+`CMakeLists.txt`.
+
+**Adding a new driver:** don't add `#ifdef BUILD_UT`/`#ifndef` to
+production code. If the driver only needs HAL calls that map cleanly onto
+a boundary method, follow the `Common`/`Real`/`Stub` split above (copy an
+existing driver's `CMakeLists.txt`). If a routine is genuinely hard to
+fake (e.g. an ISR callback with no user-context pointer, like
+`HAL_UART_TxCpltCallback`), do what `Stm32UartDriver`/`STM32Timer` do:
+route it through a public `signalX()`/`hwArmY()` method on the component
+so a unit test can call it directly to simulate the hardware event, and
+keep a single-instance callback trampoline (a file-scope pointer set once
+in the real `open()`) in the real `.cpp` only.
+
+Verification commands:
+
+```sh
+fprime-util generate --ut -f   # regenerate the host/native UT build cache
+fprime-util check              # from a driver's directory: build + run its UT
+fprime-util check --coverage   # same, plus a line/function/branch coverage report
+```
+
 ## Known follow-up work
 
 - Repeat the extended USART1 DMA and GDS soak at the corrected 480 MHz clock.
 - Validate TIM2 rollover, interrupt masking, and long-duration stability.
-- Connect `Drv::Stm32GpioDriver` to a deployment topology.
 - Continue hardware-in-the-loop automation for the STM32 target.
 - Add real persistent file support for the MicroFs-backed services; the current
   conservative configuration recognizes only `/bin<N>/file<M>` paths.
+- Re-verify the bootstrap-pool usage figure in "Memory and placement" live on
+  hardware; it's a runtime allocation count, not a static ELF section, so it
+  couldn't be refreshed by the host-only `baremetal-size` re-measurement.
+- `Svc.Seq`'s `SequenceArgumentsMaxSize` config constant isn't defined for the
+  native/host platform, so a project-wide `fprime-util check` from the repo
+  root fails on that unrelated module; run `fprime-util check` from each
+  driver's own directory (as shown above) until that gap is fixed.
