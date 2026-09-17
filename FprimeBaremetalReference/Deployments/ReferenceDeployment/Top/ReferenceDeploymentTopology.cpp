@@ -87,6 +87,9 @@ void configureTopology() {
     if(i2cDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open I2C\n");
     }
+
+    // IMU Manager initialization
+    imuManager.configure(0x68);
 }
 
 void setupTopology(const TopologyState& state) {

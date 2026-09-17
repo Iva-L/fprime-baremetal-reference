@@ -58,7 +58,9 @@ module ReferenceDeployment {
   # Queued component instances
   # ----------------------------------------------------------------------
 
-
+  instance imuManager: MpuImu.ImuManager base id 0x10017000 \
+    queue size Default.QUEUE_SIZE
+    
   # ----------------------------------------------------------------------
   # Passive component instances
   # ----------------------------------------------------------------------
