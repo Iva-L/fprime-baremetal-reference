@@ -76,7 +76,7 @@ uint32_t toTiming(Stm32::I2cBusSpeed busSpeed) {
 
 namespace Stm32 {
 
-bool Stm32I2cDriver ::hwOpen(I2cInstance instance, I2cBusSpeed busSpeed) {
+Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
     I2C_HandleTypeDef* const halHandle = toHalHandle(instance);
 
     // MX_I2Cn_Init() traps in Error_Handler() on failure rather than
@@ -88,38 +88,40 @@ bool Stm32I2cDriver ::hwOpen(I2cInstance instance, I2cBusSpeed busSpeed) {
     if (timing != halHandle->Init.Timing) {
         halHandle->Init.Timing = timing;
         if (HAL_I2C_Init(halHandle) != HAL_OK) {
-            return false;
+            return Fw::Success::FAILURE;
         }
     }
 
     s_hi2c = halHandle;
-    return true;
+    this->m_opened = true;
+    return Fw::Success::SUCCESS;
 }
 
-bool Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
+//! Address-phase NACK (no device answered) is reported via HAL_I2C_GetError(),
+//! not the HAL_StatusTypeDef -- distinguishes I2C_ADDRESS_ERR from a
+//! data-phase/bus I2C_WRITE_ERR/I2C_READ_ERR.
+Drv::I2cStatus Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
     const HAL_StatusTypeDef status =
         HAL_I2C_Master_Transmit(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
-    if (status != HAL_OK) {
-        Fw::LogStringArg _op("Master_Transmit");
-        this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
-        return false;
+    if (status == HAL_OK) {
+        return Drv::I2cStatus::I2C_OK;
     }
-    return true;
+    Fw::LogStringArg _op("Master_Transmit");
+    this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
+    return ((HAL_I2C_GetError(s_hi2c) & HAL_I2C_ERROR_AF) != 0U) ? Drv::I2cStatus::I2C_ADDRESS_ERR
+                                                                  : Drv::I2cStatus::I2C_WRITE_ERR;
 }
 
-bool Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
+Drv::I2cStatus Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
     const HAL_StatusTypeDef status =
         HAL_I2C_Master_Receive(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
-    if (status != HAL_OK) {
-        Fw::LogStringArg _op("Master_Receive");
-        this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
-        return false;
+    if (status == HAL_OK) {
+        return Drv::I2cStatus::I2C_OK;
     }
-    return true;
-}
-
-bool Stm32I2cDriver ::hwIsAddressNack() {
-    return (HAL_I2C_GetError(s_hi2c) & HAL_I2C_ERROR_AF) != 0U;
+    Fw::LogStringArg _op("Master_Receive");
+    this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
+    return ((HAL_I2C_GetError(s_hi2c) & HAL_I2C_ERROR_AF) != 0U) ? Drv::I2cStatus::I2C_ADDRESS_ERR
+                                                                  : Drv::I2cStatus::I2C_READ_ERR;
 }
 
 }  // namespace Stm32
