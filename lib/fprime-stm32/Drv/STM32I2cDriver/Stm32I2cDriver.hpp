@@ -25,7 +25,7 @@ enum class I2cInstance { I2c1, I2c2, I2c3, I2c4 };
 //! value is a CubeMX-computed constant for this project's actual peripheral
 //! clock (D2PCLK1), not derived at runtime, so only the presets CubeMX has
 //! actually generated for this project are offered here.
-enum class I2cBusSpeed { Standard, Fast };
+enum class I2cBusSpeed { Standard, Fast, FastPlus };
 
 class Stm32I2cDriver final : public Stm32I2cDriverComponentBase {
   public:
