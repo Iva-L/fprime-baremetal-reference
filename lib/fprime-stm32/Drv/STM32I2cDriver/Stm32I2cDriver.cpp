@@ -17,6 +17,7 @@ namespace {
 // CubeMX-computed I2C1 Timing register presets for this project's actual D2PCLK1 peripheral clock.
 constexpr uint32_t I2C_TIMING_STANDARD_100KHZ = 0x307075B1U;
 constexpr uint32_t I2C_TIMING_FAST_400KHZ = 0x00B03FDBU;
+constexpr uint32_t I2C_TIMING_FASTPLUS_1MHZ = 0x0050174FU;
 
 //! Single-instance HAL handle pointer, set once in the real hwOpen() and
 //! used by every subsequent hw* call -- mirrors Stm32UartDriver's s_huart.
@@ -57,6 +58,9 @@ uint32_t toTiming(Stm32::I2cBusSpeed busSpeed) {
         case Stm32::I2cBusSpeed::Standard:
             return I2C_TIMING_STANDARD_100KHZ;
         case Stm32::I2cBusSpeed::Fast:
+            return I2C_TIMING_FAST_400KHZ;
+        case Stm32::I2cBusSpeed::FastPlus:
+            return I2C_TIMING_FASTPLUS_1MHZ;
         default:
             return I2C_TIMING_FAST_400KHZ;
     }
