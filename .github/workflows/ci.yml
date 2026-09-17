@@ -57,27 +57,17 @@ jobs:
           # Navigate to the Led component directory and run host tests
           cd $GITHUB_WORKSPACE/FprimeBaremetalReference/Components/Led && fprime-util check --coverage
 
-      - name: Run Srv/STM32UartDriver Host Tests
+      - name: Run Drv/STM32UartDriver Host Tests
         run: |
           # Navigate to the STM32UartDriver component directory and run host tests
           cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
 
-      - name: Run Srv/STM32Timer Host Tests
+      - name: Run Drv/STM32Timer Host Tests
         run: |
           # Navigate to the STM32Timer component directory and run host tests
           cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
           
-      - name: Run Srv/STM32GpioDriver Host Tests
+      - name: Run Drv/STM32GpioDriver Host Tests
         run: |
           # Navigate to the STM32GpioDriver component directory and run host tests
           cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage
-
-      - name: Collect and Upload Coverage Reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage-reports
-          path: |
-            FprimeBaremetalReference/Components/Led/coverage/
-            lib/fprime-stm32/Drv/*/coverage/
-          retention-days: 14
