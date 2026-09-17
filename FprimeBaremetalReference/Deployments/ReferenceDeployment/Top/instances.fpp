@@ -75,4 +75,6 @@ module ReferenceDeployment {
 
   instance gpioDriver: Stm32.Stm32GpioDriver base id 0x10015000
 
+  instance i2cDriver: Stm32.Stm32I2cDriver base id 0x10016000
+
 }
