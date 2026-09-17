@@ -8,7 +8,11 @@
 #define Stm32_Stm32I2cDriver_HPP
 
 #include "lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriverComponentAc.hpp"
+#include <Fw/Types/BasicTypes.hpp>
+#include <Fw/Types/DirectionEnumAc.hpp>
 #include <Fw/Types/SuccessEnumAc.hpp>
+#include <Fw/Types/LogicEnumAc.hpp>
+#include <Fw/Types/Assert.hpp>
 
 namespace Stm32 {
 
@@ -44,6 +48,11 @@ class Stm32I2cDriver final : public Stm32I2cDriverComponentBase {
     //! \param instance which I2C peripheral this driver instance owns
     //! \param busSpeed requested bus clock preset (default matches this
     //!        project's current 400 kHz Fast-mode configuration)
+    //! Runs MX_I2Cn_Init() for the selected instance and applies the requested
+    //! bus speed preset (re-running HAL_I2C_Init() if it differs from
+    //! CubeMX's baked-in default). No NVIC configuration: this driver is
+    //! polled-only. Implemented directly in Stm32I2cDriver.cpp (real) /
+    //! Stm32I2cDriverStub.cpp (host), since it is the HAL boundary itself.
     Fw::Success open(I2cInstance instance, I2cBusSpeed busSpeed = I2cBusSpeed::Fast);
 
   private:
@@ -51,30 +60,16 @@ class Stm32I2cDriver final : public Stm32I2cDriverComponentBase {
     //! call (Checklist Week 10: "10 ms transaction watchdog").
     static constexpr U32 TRANSACTION_TIMEOUT_MS = 10;
 
-    //! Run MX_I2Cn_Init() for the selected instance and apply the requested
-    //! bus speed preset (re-running HAL_I2C_Init() if it differs from
-    //! CubeMX's baked-in default). No NVIC configuration: this driver is
-    //! polled-only. CubeMX-generated init traps in Error_Handler() on
-    //! failure rather than returning a status (matches every other
-    //! MX_*_Init() in this project), so only the speed-override HAL_I2C_Init()
-    //! call has a real failure path here.
-    bool hwOpen(I2cInstance instance, I2cBusSpeed busSpeed);
-
     //! Blocking (polled) master write of `len` bytes to `devAddress`,
-    //! bounded by TRANSACTION_TIMEOUT_MS. Returns true if the HAL reported
-    //! HAL_OK; emits HalError itself on failure, since only this method
-    //! knows the raw HAL_StatusTypeDef.
-    bool hwMasterTransmit(U16 devAddress, U8* data, U16 len);
+    //! bounded by TRANSACTION_TIMEOUT_MS. Returns I2C_OK, I2C_ADDRESS_ERR
+    //! (address-phase NACK), or I2C_WRITE_ERR; emits HalError itself on
+    //! failure, since only this method knows the raw HAL_StatusTypeDef.
+    Drv::I2cStatus hwMasterTransmit(U16 devAddress, U8* data, U16 len);
 
     //! Blocking (polled) master read of `len` bytes from `devAddress`,
-    //! bounded by TRANSACTION_TIMEOUT_MS. Same return/error-reporting
-    //! convention as hwMasterTransmit().
-    bool hwMasterReceive(U16 devAddress, U8* data, U16 len);
-
-    //! True if the most recently failed hwMasterTransmit()/hwMasterReceive()
-    //! call failed on an address-phase NACK (no device answered), as
-    //! opposed to a data-phase or bus error.
-    bool hwIsAddressNack();
+    //! bounded by TRANSACTION_TIMEOUT_MS. Returns I2C_OK, I2C_ADDRESS_ERR,
+    //! or I2C_READ_ERR. Same error-reporting convention as hwMasterTransmit().
+    Drv::I2cStatus hwMasterReceive(U16 devAddress, U8* data, U16 len);
 
     // ----------------------------------------------------------------------
     // Handler implementations for user-defined typed input ports

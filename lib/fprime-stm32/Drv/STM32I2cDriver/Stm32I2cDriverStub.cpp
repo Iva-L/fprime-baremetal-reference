@@ -11,15 +11,14 @@
 #include <lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 
 // Injectable stub state for unit tests
-extern bool Stub_hwOpenSucceeds = true;               // simulates MX_I2Cn_Init()/speed-override HAL_I2C_Init()
-extern bool Stub_hwMasterTransmitSucceeds = true;     // simulates HAL_I2C_Master_Transmit() == HAL_OK
-extern bool Stub_hwMasterReceiveSucceeds = true;      // simulates HAL_I2C_Master_Receive() == HAL_OK
-extern bool Stub_hwAddressNack = false;               // simulates HAL_I2C_GetError() & HAL_I2C_ERROR_AF
+extern bool Stub_hwOpenSucceeds = true;                                    // simulates MX_I2Cn_Init()/speed-override HAL_I2C_Init()
+extern Drv::I2cStatus Stub_hwMasterTransmitStatus = Drv::I2cStatus::I2C_OK;  // status hwMasterTransmit() reports
+extern Drv::I2cStatus Stub_hwMasterReceiveStatus = Drv::I2cStatus::I2C_OK;   // status hwMasterReceive() reports
 extern U8 Stub_readResponseData[32] = {0};        // bytes hwMasterReceive() copies into the caller's buffer
 
 // Observable stub state for unit tests
-extern Stm32::I2cInstance Stub_lastOpenedInstance = Stm32::I2cInstance::I2c1;  // instance most recently passed to hwOpen()
-extern Stm32::I2cBusSpeed Stub_lastRequestedBusSpeed = Stm32::I2cBusSpeed::Fast;  // busSpeed most recently passed to hwOpen()
+extern Stm32::I2cInstance Stub_lastOpenedInstance = Stm32::I2cInstance::I2c1;  // instance most recently passed to open()
+extern Stm32::I2cBusSpeed Stub_lastRequestedBusSpeed = Stm32::I2cBusSpeed::Fast;  // busSpeed most recently passed to open()
 extern U16 Stub_lastDevAddress = 0;
 extern U8 Stub_lastWriteData[32] = {0};
 extern U16 Stub_lastWriteLen = 0;
@@ -27,13 +26,17 @@ extern U16 Stub_lastReadLen = 0;
 
 namespace Stm32 {
 
-bool Stm32I2cDriver ::hwOpen(I2cInstance instance, I2cBusSpeed busSpeed) {
+Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
     Stub_lastOpenedInstance = instance;
     Stub_lastRequestedBusSpeed = busSpeed;
-    return Stub_hwOpenSucceeds;
+    if (!Stub_hwOpenSucceeds) {
+        return Fw::Success::FAILURE;
+    }
+    this->m_opened = true;
+    return Fw::Success::SUCCESS;
 }
 
-bool Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
+Drv::I2cStatus Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
     Stub_lastDevAddress = devAddress;
 
     const FwSizeType captured =
@@ -43,10 +46,10 @@ bool Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
     }
     Stub_lastWriteLen = static_cast<U16>(captured);
 
-    return Stub_hwMasterTransmitSucceeds;
+    return Stub_hwMasterTransmitStatus;
 }
 
-bool Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
+Drv::I2cStatus Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
     Stub_lastDevAddress = devAddress;
     Stub_lastReadLen = len;
 
@@ -56,11 +59,7 @@ bool Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
         data[i] = Stub_readResponseData[i];
     }
 
-    return Stub_hwMasterReceiveSucceeds;
-}
-
-bool Stm32I2cDriver ::hwIsAddressNack() {
-    return Stub_hwAddressNack;
+    return Stub_hwMasterReceiveStatus;
 }
 
 }  // namespace Stm32

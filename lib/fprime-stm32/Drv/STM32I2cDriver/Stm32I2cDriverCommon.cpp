@@ -1,12 +1,12 @@
 // ======================================================================
 // \title  Stm32I2cDriverCommon.cpp
 // \author ivanlara
-// \brief  Hardware-independent logic for the STM32H7 I2C1 blocking master
-//         driver: shared by the real (stm32h7) and stubbed (host UT)
-//         builds. Contains no HAL/CMSIS dependency -- every register touch
-//         is behind the hw*() boundary declared in Stm32I2cDriver.hpp and
-//         implemented in Stm32I2cDriver.cpp (real) / Stm32I2cDriverStub.cpp
-//         (host).
+// \brief  Hardware-independent port handler logic for the STM32H7 I2C
+//         blocking master driver: shared by the real (stm32h7) and stubbed
+//         (host UT) builds. Contains no HAL/CMSIS dependency -- every
+//         register touch is behind hwMasterTransmit()/hwMasterReceive()
+//         (declared in Stm32I2cDriver.hpp) or open() itself, implemented in
+//         Stm32I2cDriver.cpp (real) / Stm32I2cDriverStub.cpp (host).
 // ======================================================================
 
 #include <lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
@@ -22,14 +22,6 @@ Stm32I2cDriver ::Stm32I2cDriver(const char* const compName) : Stm32I2cDriverComp
 
 Stm32I2cDriver ::~Stm32I2cDriver() {}
 
-Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
-    if (!this->hwOpen(instance, busSpeed)) {
-        return Fw::Success::FAILURE;
-    }
-    this->m_opened = true;
-    return Fw::Success::SUCCESS;
-}
-
 // ----------------------------------------------------------------------
 // Handler implementations for user-defined typed input ports
 // ----------------------------------------------------------------------
@@ -42,12 +34,7 @@ Drv::I2cStatus Stm32I2cDriver ::write_handler(const FwIndexType portNum, U32 add
     FW_ASSERT_NO_OVERFLOW(addr, U16);
     FW_ASSERT_NO_OVERFLOW(serBuffer.getSize(), U16);
 
-    const bool ok = this->hwMasterTransmit(static_cast<U16>(addr), serBuffer.getData(),
-                                            static_cast<U16>(serBuffer.getSize()));
-    if (ok) {
-        return Drv::I2cStatus::I2C_OK;
-    }
-    return this->hwIsAddressNack() ? Drv::I2cStatus::I2C_ADDRESS_ERR : Drv::I2cStatus::I2C_WRITE_ERR;
+    return this->hwMasterTransmit(static_cast<U16>(addr), serBuffer.getData(), static_cast<U16>(serBuffer.getSize()));
 }
 
 Drv::I2cStatus Stm32I2cDriver ::read_handler(const FwIndexType portNum, U32 addr, Fw::Buffer& serBuffer) {
@@ -58,12 +45,7 @@ Drv::I2cStatus Stm32I2cDriver ::read_handler(const FwIndexType portNum, U32 addr
     FW_ASSERT_NO_OVERFLOW(addr, U16);
     FW_ASSERT_NO_OVERFLOW(serBuffer.getSize(), U16);
 
-    const bool ok = this->hwMasterReceive(static_cast<U16>(addr), serBuffer.getData(),
-                                           static_cast<U16>(serBuffer.getSize()));
-    if (ok) {
-        return Drv::I2cStatus::I2C_OK;
-    }
-    return this->hwIsAddressNack() ? Drv::I2cStatus::I2C_ADDRESS_ERR : Drv::I2cStatus::I2C_READ_ERR;
+    return this->hwMasterReceive(static_cast<U16>(addr), serBuffer.getData(), static_cast<U16>(serBuffer.getSize()));
 }
 
 // I2C1 is configured in blocking/polled mode only (no NVIC event/error IRQ
@@ -86,15 +68,13 @@ Drv::I2cStatus Stm32I2cDriver ::writeRead_handler(const FwIndexType portNum,
 
     const U16 devAddress = static_cast<U16>(addr);
 
-    if (!this->hwMasterTransmit(devAddress, writeBuffer.getData(), static_cast<U16>(writeBuffer.getSize()))) {
-        return this->hwIsAddressNack() ? Drv::I2cStatus::I2C_ADDRESS_ERR : Drv::I2cStatus::I2C_WRITE_ERR;
+    const Drv::I2cStatus writeStatus =
+        this->hwMasterTransmit(devAddress, writeBuffer.getData(), static_cast<U16>(writeBuffer.getSize()));
+    if (Drv::I2cStatus::I2C_OK != writeStatus) {
+        return writeStatus;
     }
 
-    if (!this->hwMasterReceive(devAddress, readBuffer.getData(), static_cast<U16>(readBuffer.getSize()))) {
-        return this->hwIsAddressNack() ? Drv::I2cStatus::I2C_ADDRESS_ERR : Drv::I2cStatus::I2C_READ_ERR;
-    }
-
-    return Drv::I2cStatus::I2C_OK;
+    return this->hwMasterReceive(devAddress, readBuffer.getData(), static_cast<U16>(readBuffer.getSize()));
 }
 
 }  // namespace Stm32
