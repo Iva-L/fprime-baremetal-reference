@@ -38,6 +38,7 @@ used by the direct bare-metal GPIO examples.
 - `Drv/STM32GpioDriver`: passive GPIO input/output driver
 - `Drv/STM32Timer`: TIM2 channel 2 output-compare tick driver
 - `Drv/STM32UartDriver`: USART1 DMA-backed byte-stream driver
+- `Drv/STM32I2cDriver`: blocking/polled I2C master driver (`Drv.I2c`)
 - `include`: shared HAL configuration, cache helpers, and interrupt declarations
 - `src`: clock, MSP, peripheral, interrupt, and TIM2 clock support
 
@@ -104,6 +105,77 @@ fix, while the board was still running from the approximately 64 MHz HSI. The
 USART baud rate self-adjusted from the live peripheral clock query, so the link
 remained valid, but an extended ground-link soak at the corrected PLL clock is
 still required.
+
+## I2C bus (`Stm32I2cDriver`)
+
+`Stm32::Stm32I2cDriver` implements the framework's `Drv.I2c` interface
+(guarded, synchronous `write`/`read`/`writeRead` ports, each returning
+`Drv::I2cStatus` directly) against I2C1 on PB6/PB7 (SCL/SDA). Unlike
+`Stm32UartDriver`, it is deliberately blocking/polled, not interrupt-driven:
+`HAL_I2C_MspInit()` only enables the peripheral clock/GPIO, no NVIC
+event/error interrupt is armed, and every `HAL_I2C_Master_Transmit`/`_Receive`
+call is bounded by a fixed 10 ms watchdog passed as the HAL's own `Timeout`
+parameter. This is a deliberate choice, not a shortcut: `Drv.I2c` is a
+synchronous contract (the same one `Drv::LinuxI2cDriver` implements by
+blocking on `ioctl`), the cyclic executive has no thread to free up by not
+blocking, and a real I2C transaction at 400 kHz is sub-millisecond. Interrupts
+would only earn their complexity back for `writeRead`'s one real limitation:
+it is two back-to-back blocking calls (STOP then START), not a single
+electrically-held repeated START, which is safe on this single-master bus but
+would need the sequential IT/DMA API (with I2C1's NVIC interrupt enabled) for
+a sensor that strictly requires the bus held across the register-address
+write.
+
+`open(instance, busSpeed)` selects both the peripheral (`I2cInstance::I2c1`
+today; `I2c2`/`I2c3`/`I2c4` are declared for other boards but not yet
+CubeMX-configured) and a bus speed preset (`I2cBusSpeed::Standard`/`Fast`/
+`FastPlus` — CubeMX-computed `Timing` register values for this project's
+actual D2PCLK1 clock, since the H7 I2C peripheral has no runtime baud-rate
+formula the way UART does). It follows the same `Common`/`Real`/`Stub` HAL
+boundary convention described below, with one variant: `open()` itself is
+implemented directly in `Stm32I2cDriver.cpp`/`Stm32I2cDriverStub.cpp` rather
+than delegating to a private `hwOpen()`, since (unlike UART's DMA/ISR setup)
+there's no separate hardware-independent work for a shared `Common.cpp` to do
+around it.
+
+Validated live against a real MPU-6050 IMU (wake-up register write, then
+repeated 14-byte accel/gyro/temp reads) — see "Adding a sensor" below for how
+that's wired without any application code touching the I2C bus directly.
+
+### Adding a sensor
+
+Connect a sensor's ports directly to `Stm32I2cDriver`'s `write`/`read`/
+`writeRead` — if the sensor component already imports the framework's
+`Drv.I2c`/`Drv.I2cWriteRead` port types (check its `.fpp`), no adapter
+component is needed. This is exactly how the MPU-6050 was wired:
+`fprime-sensors`' `MpuImu.ImuManager` (a `queued` component with its own
+internal reset/enable/configure/read state machine) declares `busWrite:
+Drv.I2c` / `busWriteRead: Drv.I2cWriteRead` output ports, connected straight
+to `i2cDriver.write`/`i2cDriver.writeRead` in `Top/topology.fpp`. Its standard
+command/event/telemetry/param/time ports wire themselves via the topology's
+existing pattern-graph specifiers (`command connections instance
+CdhCore.cmdDisp`, etc.) — the only manual connections needed were the two I2C
+ports and a rate-group tick into its `run` port.
+
+**Don't use the sensor library's own bundled example `Subtopology`
+(`MpuImuSubtopologyConfig.fpp` etc.), and don't add the whole library via
+`settings.ini`'s `library_locations`.** Those bundled Subtopologies hardcode a
+`Drv.Linux*Driver` instance type (e.g. `Drv.LinuxI2cDriver` for `MpuImu`,
+`Drv.LinuxSpiDriver` for `Bmp280`). Since Linux-only driver modules are
+skipped outright on `stm32h7` — not just their C++ target, the type doesn't
+exist in the fpp model at all — `fpp-to-cpp` fails with `"symbol Drv is not
+defined"` the instant any bundled Subtopology config gets registered, whether
+or not the deployment references it. Instead, register only the specific
+modules actually needed (for `MpuImu`: `Helpers`, `MpuImu/Types`,
+`MpuImu/Ports`, `MpuImu/Components`) directly via `add_fprime_subdirectory` in
+the project's top-level `CMakeLists.txt`, skipping each family's own
+top-level `CMakeLists.txt` (that's what pulls in `Subtopology`). Because the
+library's own sources `#include "fprime-sensors/..."` (paths relative to the
+library root), also add `lib/fprime-sensors` as a plain
+`include_directories()` root — both the source tree and
+`${CMAKE_CURRENT_BINARY_DIR}/lib/fprime-sensors`, where fpp generates the
+matching `*Ac.hpp` headers when the library isn't registered through
+`library_locations`.
 
 ## Hardware validation
 
@@ -221,7 +293,13 @@ fprime-util check --coverage   # same, plus a line/function/branch coverage repo
 - Re-verify the bootstrap-pool usage figure in "Memory and placement" live on
   hardware; it's a runtime allocation count, not a static ELF section, so it
   couldn't be refreshed by the host-only `baremetal-size` re-measurement.
-- `Svc.Seq`'s `SequenceArgumentsMaxSize` config constant isn't defined for the
-  native/host platform, so a project-wide `fprime-util check` from the repo
-  root fails on that unrelated module; run `fprime-util check` from each
-  driver's own directory (as shown above) until that gap is fixed.
+- `Stm32I2cDriver` has no `test/ut/` files yet, despite already following the
+  `Common`/`Real`/`Stub` split (`register_fprime_ut` is scaffolded but
+  commented out in its `CMakeLists.txt`) — write them.
+- Run the full I2C exit-criterion soak on real hardware: 1,000 iterations at
+  400 kHz with explicit event evidence for every injected error path (NACK,
+  timeout, bus error), not just confirmed-working normal operation.
+- If a sensor needs a true repeated START (loses its register pointer across
+  a STOP), upgrade `writeRead` to the sequential IT/DMA API with I2C1's NVIC
+  interrupt enabled — the current STOP-then-START is safe on this
+  single-master bus but isn't electrically a repeated START.

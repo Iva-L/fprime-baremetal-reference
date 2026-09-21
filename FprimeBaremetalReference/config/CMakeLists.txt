@@ -19,5 +19,10 @@ register_fprime_config(
         "${CMAKE_CURRENT_LIST_DIR}/CommandDispatcherImplCfg.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/PrmDbImplCfg.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/DpCatalogCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/MpuImuSubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/SubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/XBeeSubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Bmp280SubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Rfm69SubtopologyConfig.fpp"
     INTERFACE
 )

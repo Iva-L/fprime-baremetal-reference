@@ -82,11 +82,8 @@ void configureTopology() {
         Fw::Logger::log("[ERROR] Failed to open GPIO\n");
     }
 
-    // I2C1 driver initialization
-    const Fw::Success i2cDriverOpened = i2cDriver.open(Stm32::I2cInstance::I2c1, Stm32::I2cBusSpeed::Fast);
-    if(i2cDriverOpened == Fw::Success::FAILURE) {
-        Fw::Logger::log("[ERROR] Failed to open I2C\n");
-    }
+    // IMU Manager initialization
+    MpuImu::imuManager.configure(0x68);
 }
 
 void setupTopology(const TopologyState& state) {
