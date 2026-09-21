@@ -107,6 +107,9 @@ Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
 //! not the HAL_StatusTypeDef -- distinguishes I2C_ADDRESS_ERR from a
 //! data-phase/bus I2C_WRITE_ERR/I2C_READ_ERR.
 Drv::I2cStatus Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
+    
+    FW_ASSERT(data!=nullptr);
+    
     const HAL_StatusTypeDef status =
         HAL_I2C_Master_Transmit(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
     if (status == HAL_OK) {
@@ -119,6 +122,9 @@ Drv::I2cStatus Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 l
 }
 
 Drv::I2cStatus Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
+    
+    FW_ASSERT(data!=nullptr);
+    
     const HAL_StatusTypeDef status =
         HAL_I2C_Master_Receive(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
     if (status == HAL_OK) {
