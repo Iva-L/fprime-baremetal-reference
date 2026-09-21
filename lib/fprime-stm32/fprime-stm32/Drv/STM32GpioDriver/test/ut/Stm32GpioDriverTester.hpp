@@ -7,8 +7,8 @@
 #ifndef Stm32_Stm32GpioDriverTester_HPP
 #define Stm32_Stm32GpioDriverTester_HPP
 
-#include "lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp"
-#include "lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriverGTestBase.hpp"
+#include "fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp"
+#include "fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriverGTestBase.hpp"
 
 namespace Stm32 {
 

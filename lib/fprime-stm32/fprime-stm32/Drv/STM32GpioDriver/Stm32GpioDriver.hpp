@@ -7,7 +7,7 @@
 #ifndef STM32_GPIO_DRIVER_HPP
 #define STM32_GPIO_DRIVER_HPP
 
-#include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriverComponentAc.hpp>
+#include <fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriverComponentAc.hpp>
 #include <Fw/Types/BasicTypes.hpp>
 #include <Fw/Types/DirectionEnumAc.hpp>
 #include <Fw/Types/SuccessEnumAc.hpp>

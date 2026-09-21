@@ -7,7 +7,7 @@
 //         Stm32I2cDriverStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
+#include <fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 #include <Fw/Types/Assert.hpp>
 
 #include "i2c.h"

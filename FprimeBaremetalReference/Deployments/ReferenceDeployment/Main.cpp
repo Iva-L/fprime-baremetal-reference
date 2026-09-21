@@ -9,8 +9,8 @@
 
 #include <Os/Os.hpp>
 #include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
-#include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
-#include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
+#include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 #include <main.h>
 #include <stm32h7_clock.h>
 #include <tim2_clock.h>

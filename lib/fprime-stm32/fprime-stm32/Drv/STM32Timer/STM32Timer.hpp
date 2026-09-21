@@ -8,7 +8,7 @@
 #ifndef STM32_TIMER_HPP
 #define STM32_TIMER_HPP
 
-#include <lib/fprime-stm32/Drv/STM32Timer/STM32TimerComponentAc.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32TimerComponentAc.hpp>
 
 #include <Fw/Types/BasicTypes.hpp>
 

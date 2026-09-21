@@ -9,7 +9,7 @@
 //         (real) / Stm32UartDriverStub.cpp (host).
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
+#include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 
 namespace Stm32 {
 

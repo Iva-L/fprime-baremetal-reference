@@ -7,7 +7,7 @@
 //         Stm32GpioDriverStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
+#include <fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
 
 #include "stm32h7xx_hal.h"
 

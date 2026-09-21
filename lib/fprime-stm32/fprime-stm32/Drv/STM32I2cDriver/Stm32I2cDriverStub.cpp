@@ -8,7 +8,7 @@
 //         relying on real HAL_I2C_* return codes.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
+#include <fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 
 // Injectable stub state for unit tests
 extern bool Stub_hwOpenSucceeds = true;                                    // simulates MX_I2Cn_Init()/speed-override HAL_I2C_Init()

@@ -8,7 +8,7 @@
 //         Stm32UartDriverStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
+#include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 
 #include "CacheMaintenance.hpp"
 #include "dma.h"

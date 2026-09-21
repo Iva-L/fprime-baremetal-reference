@@ -1,16 +1,10 @@
-/* USER CODE BEGIN Header */
 /**
  ******************************************************************************
  * @file    tim2_clock.h
+ * @author  ivanlara
  * @brief   Free-running microsecond clock built on TIM2.
- *
- * TIM2 is configured (see tim.c) as a 32-bit up-counter clocked at exactly
- * 1 MHz (1 tick == 1 microsecond). Because TIM2 is only 32 bits wide it
- * overflows every ~4294.967296 seconds (~71.58 minutes); the update
- * interrupt is used to extend the counter to a 64-bit microsecond value.
  ******************************************************************************
  */
-/* USER CODE END Header */
 #ifndef __TIM2_CLOCK_H__
 #define __TIM2_CLOCK_H__
 

@@ -8,7 +8,7 @@
 //         Drv/STM32GpioDriver/CMakeLists.txt's register_fprime_ut().
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
+#include <fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
 
 // Injectable stub state for unit tests
 extern bool Stub_hwConfigurePin = true;    // HAL_GPIO_Init()/mode-verify success or failure

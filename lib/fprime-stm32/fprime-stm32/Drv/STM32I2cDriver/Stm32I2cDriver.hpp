@@ -7,7 +7,7 @@
 #ifndef Stm32_Stm32I2cDriver_HPP
 #define Stm32_Stm32I2cDriver_HPP
 
-#include "lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriverComponentAc.hpp"
+#include "fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriverComponentAc.hpp"
 #include <Fw/Types/BasicTypes.hpp>
 #include <Fw/Types/DirectionEnumAc.hpp>
 #include <Fw/Types/SuccessEnumAc.hpp>
