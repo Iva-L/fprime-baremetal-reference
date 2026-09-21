@@ -19,6 +19,7 @@ module ReferenceDeployment {
     import ComCcsds.Subtopology
     import DataProducts.Subtopology
     import FileHandling.Subtopology
+    import MpuImu.Subtopology
     
   # ----------------------------------------------------------------------
   # Instances used in the topology
@@ -34,8 +35,6 @@ module ReferenceDeployment {
     instance cmdSeq
     instance led
     instance gpioDriver
-    instance i2cDriver
-    instance imuManager
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -141,11 +140,8 @@ module ReferenceDeployment {
     }
 
     connections MpuImu {
-    imuManager.busWrite     -> i2cDriver.write
-    imuManager.busWriteRead -> i2cDriver.writeRead
-    rateGroup_1Hz.RateGroupMemberOut[8] -> imuManager.run
+      rateGroup_1Hz.RateGroupMemberOut[8] -> MpuImu.imuManager.run
     }
-
   }
 
 }
