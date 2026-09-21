@@ -34,6 +34,7 @@ module ReferenceDeployment {
     instance cmdSeq
     instance led
     instance gpioDriver
+    instance i2cDriver
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
