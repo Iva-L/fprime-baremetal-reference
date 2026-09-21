@@ -7,8 +7,8 @@
 #ifndef Stm32_STM32TimerTester_HPP
 #define Stm32_STM32TimerTester_HPP
 
-#include "lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp"
-#include "lib/fprime-stm32/Drv/STM32Timer/STM32TimerGTestBase.hpp"
+#include "fprime-stm32/Drv/STM32Timer/STM32Timer.hpp"
+#include "fprime-stm32/Drv/STM32Timer/STM32TimerGTestBase.hpp"
 
 namespace Stm32 {
 

@@ -9,7 +9,7 @@
 # else (including host UT) it links the HAL-free Stm32UartDriverStub.cpp.
 # See lib/fprime-stm32/README.md for the Common/Real/Stub convention.
 ####
-if (FPRIME_PLATFORM STREQUAL "stm32h7" AND NOT FPRIME_USE_STUBBED_DRIVERS)
+if (FPRIME_PLATFORM STREQUAL "stm32h7" AND NOT STM32_FORCE_STUBBED_DRIVERS)
     set(STM32_UART_DRIVER_IMPL_SOURCE "${CMAKE_CURRENT_LIST_DIR}/Stm32UartDriver.cpp")
     set(STM32_UART_DRIVER_IMPL_DEPENDS Os FprimeStm32Config FprimeStm32)
 else()

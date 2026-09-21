@@ -7,8 +7,8 @@
 #ifndef Stm32_Stm32I2cDriverTester_HPP
 #define Stm32_Stm32I2cDriverTester_HPP
 
-#include "lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp"
-#include "lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriverGTestBase.hpp"
+#include "fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp"
+#include "fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriverGTestBase.hpp"
 
 namespace Stm32 {
 

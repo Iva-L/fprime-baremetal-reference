@@ -7,7 +7,7 @@
 //         STM32TimerStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
 
 #include "tim.h"
 

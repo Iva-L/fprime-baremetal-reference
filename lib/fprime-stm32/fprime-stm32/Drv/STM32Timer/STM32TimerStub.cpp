@@ -9,7 +9,7 @@
 //         register_fprime_ut().
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
 
 // Observable stub state for unit tests
 extern bool Stub_channelArmed = false;      // true once hwArmChannel() has run

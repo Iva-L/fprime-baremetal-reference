@@ -20,7 +20,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32h7xx_it.h"
-#include "tim.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -56,6 +55,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern TIM_HandleTypeDef htim2;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern UART_HandleTypeDef huart1;
@@ -230,19 +230,6 @@ void DMA1_Stream1_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles USART1 global interrupt.
-  *
-  * Required for HAL_UARTEx_ReceiveToIdle_DMA()'s idle-line detection: the IDLE
-  * flag is only visible through the USART global interrupt, not the DMA
-  * stream interrupts. Dispatches to HAL_UARTEx_RxEventCallback()/
-  * HAL_UART_ErrorCallback() in Drv::Stm32UartDriver.
-  */
-void USART1_IRQHandler(void)
-{
-  HAL_UART_IRQHandler(&huart1);
-}
-
-/**
   * @brief This function handles TIM2 global interrupt.
   */
 void TIM2_IRQHandler(void)
@@ -254,6 +241,20 @@ void TIM2_IRQHandler(void)
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
   /* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
+  /* USER CODE END USART1_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

@@ -6,7 +6,7 @@
 //         builds. Contains no HAL/CMSIS dependency.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
+#include <fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
 
 namespace Stm32 {
 

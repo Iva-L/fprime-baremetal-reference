@@ -6,7 +6,7 @@
 //         Contains no HAL/CMSIS dependency.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
 
 #include <Os/RawTime.hpp>
 

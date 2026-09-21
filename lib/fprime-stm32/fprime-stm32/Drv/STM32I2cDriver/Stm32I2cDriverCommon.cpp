@@ -9,7 +9,7 @@
 //         Stm32I2cDriver.cpp (real) / Stm32I2cDriverStub.cpp (host).
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
+#include <fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 #include <Fw/Types/Assert.hpp>
 
 namespace Stm32 {

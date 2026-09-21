@@ -7,8 +7,8 @@
 #ifndef Stm32_Stm32UartDriverTester_HPP
 #define Stm32_Stm32UartDriverTester_HPP
 
-#include "lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp"
-#include "lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriverGTestBase.hpp"
+#include "fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp"
+#include "fprime-stm32/Drv/STM32UartDriver/Stm32UartDriverGTestBase.hpp"
 
 namespace Stm32 {
 

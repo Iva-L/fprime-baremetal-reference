@@ -11,7 +11,7 @@
 //         controls/inspects the `extern` stub state below.
 // ======================================================================
 
-#include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
+#include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 
 // Injectable stub state for unit tests
 extern bool Stub_hwOpenSucceeds = true;        // simulates MX_DMA_Init()/MX_USARTn_UART_Init()/initial RX arm
