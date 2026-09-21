@@ -17,10 +17,6 @@ fprime_setup_included_code()
 
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/fprime-stm32")
 
-# Register project-level configuration overrides after framework and library
-# configuration modules have been added.
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config")
-
 # This includes project-wide objects
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/FprimeBaremetalReference")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/FprimeBaremetalReference/Deployments/ReferenceDeployment/")
