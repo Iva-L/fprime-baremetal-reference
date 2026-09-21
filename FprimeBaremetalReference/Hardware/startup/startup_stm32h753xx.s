@@ -109,7 +109,7 @@ LoopFillZeroDtcmBss:
   bcc FillZeroDtcmBss
 
 /* Register the fixed allocator before any C++ constructor can call new. */
-  bl ReferenceDeployment_registerBootstrapAllocator
+  bl Stm32_registerBootstrapAllocator
 
 /* Call static constructors */
     bl __libc_init_array

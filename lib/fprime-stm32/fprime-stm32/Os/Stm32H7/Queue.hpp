@@ -6,9 +6,9 @@
 // blocking primitive to wait on. Every queue is a fixed-depth ring buffer
 // whose backing storage is allocated once (via `new`, which is routed
 // through `Os::Baremetal::OverrideNewDelete` to the deployment's bootstrap
-// static pool -- see ReferenceDeployment/BootstrapAllocator.cpp) during
+// static pool -- see fprime-stm32/Allocator/BootstrapAllocator.cpp) during
 // `create()`, which only ever runs during `setupTopology()`, i.e. before
-// `ReferenceDeployment::lockBootstrapAllocator()` is called. No memory is
+// `Stm32::lockBootstrapAllocator()` is called. No memory is
 // ever allocated or freed once the cyclic loop starts.
 //
 // `BlockingType::BLOCKING` degrades to an immediate FULL/EMPTY return

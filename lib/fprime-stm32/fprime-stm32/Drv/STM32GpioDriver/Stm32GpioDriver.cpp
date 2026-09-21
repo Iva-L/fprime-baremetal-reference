@@ -1,15 +1,19 @@
 // ======================================================================
 // \title  Stm32GpioDriver.cpp
 // \author ivanlara
-// \brief  HAL boundary for the STM32H7 bare-metal GPIO pin driver (real
-//         hardware implementation, stm32h7 target only). This is the only
-//         file in this driver allowed to include stm32h7xx_hal.h -- see
+// \brief  HAL boundary for the STM32 bare-metal GPIO pin driver (real
+//         hardware implementation, STM32 targets only). This is the only
+//         file in this driver allowed to include HAL headers -- see
 //         Stm32GpioDriverStub.cpp for the host unit-test stand-in.
 // ======================================================================
 
 #include <fprime-stm32/Drv/STM32GpioDriver/Stm32GpioDriver.hpp>
 
-#include "stm32h7xx_hal.h"
+// gpio.h is CubeMX's own always-present per-peripheral header (generated
+// under this exact name for every STM32 family); it chains to the family
+// HAL umbrella (via main.h), so including it instead of naming e.g.
+// stm32h7xx_hal.h directly keeps this file portable across STM32 families.
+#include "gpio.h"
 
 namespace {
 

@@ -18,9 +18,9 @@
 // eh_alloc.cc's __cxa_allocate_exception() emergency pool) calls raw
 // C malloc() -- not operator new -- from a global static constructor
 // that runs during __libc_init_array(), i.e. strictly *before* main()
-// and therefore before ReferenceDeployment::lockBootstrapAllocator() is
+// and therefore before Stm32::lockBootstrapAllocator() is
 // called. This is a one-time, bounded, toolchain-internal allocation
-// (see ReferenceDeployment::getBootstrapAllocator()), not an
+// (see Stm32::getBootstrapAllocator()), not an
 // application-level dynamic allocation, so __wrap_malloc forwards it to
 // the same StrictStaticAllocator bootstrap pool already used by
 // OverrideNewDelete for operator new. Once the pool is locked (right
@@ -28,7 +28,7 @@
 // application code or otherwise -- still hits FW_ASSERT below via the
 // allocator's own "!m_locked" assertion.
 // ======================================================================
-#include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 
 #include <Fw/Types/Assert.hpp>
 #include <Fw/Types/MemAllocator.hpp>
@@ -43,7 +43,7 @@ void* __wrap_malloc(std::size_t size) {
     bool recoverable = false;
     // Forwards to the bootstrap allocator; this itself FW_ASSERTs if the
     // pool is locked, exhausted, or misaligned -- see BootstrapAllocator.cpp.
-    return ReferenceDeployment::getBootstrapAllocator().allocate(0, allocSize, recoverable);
+    return Stm32::getBootstrapAllocator().allocate(0, allocSize, recoverable);
 }
 
 void* __wrap_calloc(std::size_t num, std::size_t size) {

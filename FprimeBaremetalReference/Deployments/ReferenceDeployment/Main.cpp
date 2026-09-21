@@ -3,7 +3,7 @@
 // \author ivanlara
 // \brief Bare-metal cyclic executive entry point with integrated hardware LED blinker.
 // ======================================================================
-#include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopology.hpp>
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
 
@@ -32,7 +32,7 @@ int main() {
 
     ReferenceDeployment::TopologyState inputs = {};
     ReferenceDeployment::setupTopology(inputs);
-    ReferenceDeployment::lockBootstrapAllocator();
+    Stm32::lockBootstrapAllocator();
 
     while (true) {
 
