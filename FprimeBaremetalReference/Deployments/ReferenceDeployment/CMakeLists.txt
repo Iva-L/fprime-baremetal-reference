@@ -1,8 +1,8 @@
 #####
 # 'ReferenceDeployment' Deployment:
 #
-# This registers the 'ReferenceDeployment' deployment to the build system. 
-# Custom components that have not been added at the project-level should be added to 
+# This registers the 'ReferenceDeployment' deployment to the build system.
+# Custom components that have not been added at the project-level should be added to
 # the list below.
 #
 #####
@@ -22,13 +22,17 @@ register_fprime_deployment(
     ReferenceDeployment
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/BootstrapAllocator.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/MallocWrappers.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/startup/startup_stm32h753xx.s"
-        "${CMAKE_CURRENT_LIST_DIR}/../../../lib/fprime-stm32/fprime-stm32/Hal/stm32h753_hal/Core/Src/stm32h7xx_it.c"
+        "${CMAKE_CURRENT_LIST_DIR}/../../Hardware/startup/startup_stm32h753xx.s"
+        # Compiled directly into the executable (not through the archived
+        # FprimeStm32 static library) so its strong ISR definitions always
+        # override the weak Default_Handler aliases in the startup file --
+        # see the NOTE in FprimeBaremetalReference/Hardware/CMakeLists.txt
+        # for the full static-archive-extraction explanation.
+        "${CMAKE_CURRENT_LIST_DIR}/../../Hardware/stm32h753_hal/Core/Src/stm32h7xx_it.c"
     DEPENDS
         ReferenceDeployment_Top
         FprimeStm32
+        FprimeStm32Allocator
         Os_Baremetal_OverrideNewDelete
 )
 
@@ -38,7 +42,7 @@ target_include_directories(ReferenceDeployment PRIVATE
 )
 
 target_link_options(ReferenceDeployment PRIVATE
-    "-T${CMAKE_CURRENT_LIST_DIR}/linker/STM32H753XIHx_FLASH.ld"
+    "-T${CMAKE_CURRENT_LIST_DIR}/../../Hardware/linker/STM32H753XIHx_FLASH.ld"
     "-Wl,--gc-sections"
     "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/ReferenceDeployment.map"
     "-Wl,--undefined=_Znwj"
@@ -53,12 +57,5 @@ target_link_options(ReferenceDeployment PRIVATE
     "-Wl,--undefined=_ZdaPvl"
     "-Wl,--undefined=_ZdlPvj"
     "-Wl,--undefined=_ZdaPvj"
-    "-Wl,--wrap=malloc"
-    "-Wl,--wrap=calloc"
-    "-Wl,--wrap=realloc"
-    "-Wl,--wrap=free"
     "--specs=nosys.specs"
-)
-target_sources(ReferenceDeployment PRIVATE
-    "${CMAKE_CURRENT_LIST_DIR}/startup/startup_stm32h753xx.s"
 )

@@ -2,7 +2,7 @@
 // \title  BootstrapAllocator.cpp
 // \brief  Fixed-pool allocator used during deployment initialization
 // ======================================================================
-#include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 
 #include <Fw/Types/Assert.hpp>
 #include <fprime-baremetal/Os/OverrideNewDelete/OverrideNewDelete.hpp>
@@ -68,13 +68,13 @@ StrictStaticAllocator* staticAllocator = nullptr;
 
 }  // namespace
 
-extern "C" void ReferenceDeployment_registerBootstrapAllocator() {
+extern "C" void Stm32_registerBootstrapAllocator() {
     FW_ASSERT(staticAllocator == nullptr);
     staticAllocator = new (staticAllocatorStorage) StrictStaticAllocator(staticHeapPool, sizeof(staticHeapPool));
     (void)Os::Baremetal::OverrideNewDelete::registerMemAllocator(staticAllocator);
 }
 
-namespace ReferenceDeployment {
+namespace Stm32 {
 
 Fw::MemAllocator& getBootstrapAllocator() {
     FW_ASSERT(staticAllocator != nullptr);
@@ -86,4 +86,4 @@ void lockBootstrapAllocator() {
     staticAllocator->lock();
 }
 
-}  // namespace ReferenceDeployment
+}  // namespace Stm32

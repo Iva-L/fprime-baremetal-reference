@@ -1,65 +1,45 @@
-set(FPRIME_STM32_HAL_SOURCES
-    Hal/stm32h753_hal/Core/Src/system_stm32h7xx.c
-    Hal/stm32h753_hal/Core/Src/stm32h7xx_hal_msp.c
-    # NOTE: Hal/stm32h753_hal/Core/Src/stm32h7xx_it.c is intentionally
-    # NOT compiled into this static library.
-    Hal/config/src/stm32h7_clock.c
-    Hal/stm32h753_hal/Core/Src/dma.c
-    Hal/stm32h753_hal/Core/Src/gpio.c
-    Hal/stm32h753_hal/Core/Src/i2c.c
-    Hal/stm32h753_hal/Core/Src/tim.c
-    Hal/config/src/tim2_clock.cpp
-    Hal/stm32h753_hal/Core/Src/usart.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma_ex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_exti.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_flash_ex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_gpio.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hsem.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.c
-    Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart_ex.c
-)
+####
+# fprime-stm32 is a reusable submodule: it only supplies hardware-agnostic
+# OSAL delegates and drivers on top of a `FprimeStm32` target. The consuming
+# project owns the actual hardware/HAL build (see
+# FprimeBaremetalReference/Hardware/CMakeLists.txt) so that swapping to
+# different hardware never requires forking this library.
+####
 
 add_library(FprimeStm32Config INTERFACE)
 target_include_directories(FprimeStm32Config INTERFACE "${CMAKE_CURRENT_LIST_DIR}/Drv/config")
 
+####
+# Fully hardware-agnostic infra every STM32 bare-metal project needs: the
+# fixed-pool bootstrap allocator + GNU ld `--wrap` traps enforcing the JPL
+# no-heap-after-bootstrap rule. Not gated by FPRIME_PLATFORM -- this has zero
+# chip coupling. OBJECT, not STATIC: `__wrap_malloc`/`__wrap_free` are only
+# ever reached through the linker's `--wrap` symbol substitution, invisible
+# to CMake's dependency graph, so a STATIC archive can land before whatever
+# needs it on the link line and leave the wrap symbols unresolved. An OBJECT
+# library's .o files are unconditionally added to the final link instead.
+####
+add_library(FprimeStm32Allocator OBJECT
+    "${CMAKE_CURRENT_LIST_DIR}/Allocator/BootstrapAllocator.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/Allocator/MallocWrappers.cpp"
+)
+target_link_libraries(FprimeStm32Allocator PUBLIC Fw_Types Os_Baremetal_OverrideNewDelete)
+target_link_options(FprimeStm32Allocator INTERFACE
+    "-Wl,--wrap=malloc"
+    "-Wl,--wrap=calloc"
+    "-Wl,--wrap=realloc"
+    "-Wl,--wrap=free"
+)
 
-if (FPRIME_PLATFORM STREQUAL "stm32h7")
-    add_library(FprimeStm32 STATIC ${FPRIME_STM32_HAL_SOURCES})
+####
+# Core-level (ARM architecture, not ST-family) helpers, grouped by core.
+# CacheMaintenance.hpp only needs Cortex-M7's cache-maintenance intrinsics --
+# valid for any Cortex-M7 part, not just STM32H7 -- so it isn't gated by
+# FPRIME_PLATFORM either.
+####
+add_library(FprimeStm32CoreCortexM7 INTERFACE)
+target_include_directories(FprimeStm32CoreCortexM7 INTERFACE "${CMAKE_CURRENT_LIST_DIR}/Core/CortexM7")
 
-    target_include_directories(FprimeStm32 PUBLIC
-        "${PROJECT_SOURCE_DIR}"
-        "${CMAKE_BINARY_DIR}"
-        "${FPRIME_PROJECT_ROOT}"
-        "${CMAKE_CURRENT_BINARY_DIR}"
-        "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32UartDriver"
-        "${CMAKE_CURRENT_BINARY_DIR}/Drv/STM32Timer"
-        "${CMAKE_CURRENT_LIST_DIR}/Drv/config"
-        "${CMAKE_CURRENT_LIST_DIR}/Hal/config/include"
-        "${CMAKE_CURRENT_LIST_DIR}/Hal/stm32h753_hal/Core/Inc"
-        "${CMAKE_CURRENT_LIST_DIR}/Hal/stm32h753_hal/Drivers/CMSIS/Include"
-        "${CMAKE_CURRENT_LIST_DIR}/Hal/stm32h753_hal/Drivers/CMSIS/Device/ST/STM32H7xx/Include"
-        "${CMAKE_CURRENT_LIST_DIR}/Hal/stm32h753_hal/Drivers/STM32H7xx_HAL_Driver/Inc"
-    )
-
-    target_compile_definitions(FprimeStm32 PUBLIC STM32H753xx USE_HAL_DRIVER USE_PWR_LDO_SUPPLY)
-
-    target_compile_options(FprimeStm32 PRIVATE -ffunction-sections -fdata-sections)
-
-    target_link_libraries(FprimeStm32 PUBLIC PlatformStm32h7)
-    add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")
-endif()
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Os")
 
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Drv")

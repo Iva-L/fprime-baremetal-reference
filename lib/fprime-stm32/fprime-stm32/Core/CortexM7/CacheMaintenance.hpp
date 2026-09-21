@@ -9,7 +9,12 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "stm32h7xx_hal.h"
+// CubeMX generates `main.h` under this exact name for every STM32 family, and
+// it chains to the family HAL/device/CMSIS-core headers with the right
+// pre-defines (__FPU_PRESENT, __DCACHE_PRESENT, etc.) already set up -- unlike
+// including the family-named HAL header (e.g. stm32h7xx_hal.h) directly, this
+// keeps this Cortex-M7-generic helper portable across STM32 families.
+#include "main.h"
 
 namespace Stm32 {
 

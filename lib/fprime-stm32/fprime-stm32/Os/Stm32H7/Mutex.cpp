@@ -3,7 +3,10 @@
 // \brief Cortex-M7 critical-section implementation of Os::Mutex
 // ======================================================================
 #include "Mutex.hpp"
-#include <stm32h7xx.h>
+// main.h chains to the family CMSIS-core header with the right pre-defines
+// already set up (__FPU_PRESENT, etc.) -- keeps this file portable across
+// STM32 families instead of naming stm32h7xx.h directly.
+#include <main.h>
 
 namespace Os {
 namespace Stm32 {

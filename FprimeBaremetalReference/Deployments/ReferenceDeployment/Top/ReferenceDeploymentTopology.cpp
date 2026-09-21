@@ -5,7 +5,7 @@
 // ======================================================================
 // Provides access to autocoded functions
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
-#include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 #include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
 #include <UartDriverConfig.hpp>
 #include <Fw/Logger/Logger.hpp>
@@ -50,7 +50,7 @@ void configureTopology() {
     Os::Baremetal::MicroFs::MicroFsSetCfgBins(microFsConfig, 2);
     Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 0, 1024, 2);
     Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 1, 4096, 1);
-    Os::Baremetal::MicroFs::MicroFsInit(microFsConfig, 0, getBootstrapAllocator());
+    Os::Baremetal::MicroFs::MicroFsInit(microFsConfig, 0, Stm32::getBootstrapAllocator());
 
     // Rate group driver needs a divisor list
     rateGroupDriver.configure(rateGroupDivisorsSet);
@@ -64,7 +64,7 @@ void configureTopology() {
     rateGroup_0_25Hz.configure(rateGroup_0_25HzContext);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    cmdSeq.allocateBuffer(0, getBootstrapAllocator(), 5 * 1024);
+    cmdSeq.allocateBuffer(0, Stm32::getBootstrapAllocator(), 5 * 1024);
 
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
@@ -124,7 +124,7 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
 
     // Resource deallocation
-    cmdSeq.deallocateBuffer(getBootstrapAllocator());
+    cmdSeq.deallocateBuffer(Stm32::getBootstrapAllocator());
 
     tearDownComponents(state);
     deinitComponents(state);

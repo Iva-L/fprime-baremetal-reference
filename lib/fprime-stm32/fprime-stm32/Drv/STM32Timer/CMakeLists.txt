@@ -9,7 +9,7 @@
 # (including host UT) it links the HAL-free STM32TimerStub.cpp. See
 # lib/fprime-stm32/README.md for the Common/Real/Stub convention.
 ####
-if (FPRIME_PLATFORM STREQUAL "stm32h7" AND NOT STM32_FORCE_STUBBED_DRIVERS)
+if (FPRIME_PLATFORM MATCHES "^stm32" AND NOT STM32_FORCE_STUBBED_DRIVERS)
     set(STM32_TIMER_IMPL_SOURCE "${CMAKE_CURRENT_LIST_DIR}/STM32Timer.cpp")
     set(STM32_TIMER_IMPL_DEPENDS FprimeStm32)
 else()

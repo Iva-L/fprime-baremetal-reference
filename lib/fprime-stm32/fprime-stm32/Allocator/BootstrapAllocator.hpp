@@ -2,18 +2,18 @@
 // \title  BootstrapAllocator.hpp
 // \brief  Fixed-pool allocator used during deployment initialization
 // ======================================================================
-#ifndef REFERENCEDEPLOYMENT_BOOTSTRAPALLOCATOR_HPP
-#define REFERENCEDEPLOYMENT_BOOTSTRAPALLOCATOR_HPP
+#ifndef FPRIME_STM32_BOOTSTRAPALLOCATOR_HPP
+#define FPRIME_STM32_BOOTSTRAPALLOCATOR_HPP
 
 #include <Fw/Types/MemAllocator.hpp>
 
-namespace ReferenceDeployment {
+namespace Stm32 {
 
 Fw::MemAllocator& getBootstrapAllocator();
 void lockBootstrapAllocator();
 
-}  // namespace ReferenceDeployment
+}  // namespace Stm32
 
-extern "C" void ReferenceDeployment_registerBootstrapAllocator();
+extern "C" void Stm32_registerBootstrapAllocator();
 
-#endif  // REFERENCEDEPLOYMENT_BOOTSTRAPALLOCATOR_HPP
+#endif  // FPRIME_STM32_BOOTSTRAPALLOCATOR_HPP
