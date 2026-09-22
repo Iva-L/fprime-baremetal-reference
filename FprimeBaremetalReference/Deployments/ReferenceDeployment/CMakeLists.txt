@@ -32,6 +32,7 @@ register_fprime_deployment(
     DEPENDS
         ReferenceDeployment_Top
         FprimeStm32
+        FprimeStm32Config
         FprimeStm32Allocator
         Os_Baremetal_OverrideNewDelete
 )
