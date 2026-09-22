@@ -57,3 +57,5 @@ status = i2cDriver.get_writeRead_InputPort(0)->invoke(sensorAddr, regAddrBuffer,
 ```
 
 Note that the caller owns the buffers passed to each port; the driver does not retain or deallocate them.
+
+To use a different I2C instance: enable it in `Stm32Config.hpp` (its `I2Cn_Instance` macro), regenerate the CubeMX project with that peripheral configured, call `open()`, then pass the matching `Stm32::I2cInstance` value to `open()` as well as the matching `Stm32::I2cBusSpeed`.
