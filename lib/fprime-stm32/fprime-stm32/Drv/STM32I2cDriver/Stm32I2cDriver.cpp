@@ -111,6 +111,7 @@ namespace Stm32 {
 
 Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
     I2C_HandleTypeDef* const halHandle = toHalHandle(instance);
+    FW_ASSERT(halHandle != nullptr, static_cast<FwAssertArgType>(instance));
 
     // MX_I2Cn_Init() traps in Error_Handler() on failure rather than
     // returning a status (matches every other CubeMX-generated
