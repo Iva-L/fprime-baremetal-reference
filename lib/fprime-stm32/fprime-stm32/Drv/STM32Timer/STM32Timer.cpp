@@ -25,95 +25,85 @@ TIM_HandleTypeDef* s_htim = nullptr;
 
 //! Convert a HAL-free TimerInstance to the corresponding HAL handle.
 TIM_HandleTypeDef* toHalHandle(Stm32::TimerInstance instance) {
+
+    TIM_HandleTypeDef* deviceHandle = nullptr;
+    
     switch (instance) {
         case Stm32::TimerInstance::Tim1:
             #if TIM1_INSTANCE
-            return &htim1;
-            #else
-            return nullptr;
+            deviceHandle = &htim1;
             #endif
+            break;
         case Stm32::TimerInstance::Tim2:
             #if TIM2_INSTANCE
-            return &htim2;
-            #else
-            return nullptr;
+            deviceHandle = &htim2;
             #endif
+            break;
         case Stm32::TimerInstance::Tim3:
             #if TIM3_INSTANCE
-            return &htim3;
-            #else
-            return nullptr;
+            deviceHandle = &htim3;
             #endif
+            break;
         case Stm32::TimerInstance::Tim4:
             #if TIM4_INSTANCE
-            return &htim4;
-            #else
-            return nullptr;
+            deviceHandle = &htim4;
             #endif
+            break;
         case Stm32::TimerInstance::Tim5:
             #if TIM5_INSTANCE
-            return &htim5;
-            #else
-            return nullptr;
+            deviceHandle = &htim5;
             #endif
+            break;
         case Stm32::TimerInstance::Tim6:
             #if TIM6_INSTANCE
-            return &htim6;
-            #else
-            return nullptr;
+            deviceHandle = &htim6;
             #endif
+            break;
         case Stm32::TimerInstance::Tim7:
             #if TIM7_INSTANCE
-            return &htim7;
-            #else
-            return nullptr;
+            deviceHandle = &htim7;
             #endif
+            break;
         case Stm32::TimerInstance::Tim8:
             #if TIM8_INSTANCE
-            return &htim8;
-            #else
-            return nullptr;
+            deviceHandle = &htim8;
             #endif
+            break;
         case Stm32::TimerInstance::Tim12:
             #if TIM12_INSTANCE
-            return &htim12;
-            #else
-            return nullptr;
+            deviceHandle = &htim12;
             #endif
+            break;
         case Stm32::TimerInstance::Tim13:
             #if TIM13_INSTANCE
-            return &htim13;
-            #else
-            return nullptr;
+            deviceHandle = &htim13;
             #endif
+            break;
         case Stm32::TimerInstance::Tim14:
             #if TIM14_INSTANCE
-            return &htim14;
-            #else
-            return nullptr;
+            deviceHandle = &htim14;
             #endif
+            break;
         case Stm32::TimerInstance::Tim15:
             #if TIM15_INSTANCE
-            return &htim15;
-            #else
-            return nullptr;
+            deviceHandle = &htim15;
             #endif
+            break;
         case Stm32::TimerInstance::Tim16:
             #if TIM16_INSTANCE
-            return &htim16;
-            #else
-            return nullptr;
+            deviceHandle = &htim16;
             #endif
+            break;
         case Stm32::TimerInstance::Tim17:
             #if TIM17_INSTANCE
-            return &htim17;
-            #else
-            return nullptr;
+            deviceHandle = &htim17;
             #endif
+            break;
         default:
             FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
-            return nullptr;
+            break;
     }
+    return deviceHandle;
 }
 
 }  // namespace
