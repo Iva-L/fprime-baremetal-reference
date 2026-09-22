@@ -7,7 +7,7 @@
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
 #include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 #include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
-#include <UartDriverConfig.hpp>
+#include <config/UartDriverConfig.hpp>
 #include <Fw/Logger/Logger.hpp>
 
 #include "stm32h7xx_hal.h"

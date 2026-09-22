@@ -10,7 +10,7 @@
 #include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriverComponentAc.hpp>
 #include <Fw/Types/SuccessEnumAc.hpp>
 #include <Os/RawTime.hpp>
-#include <UartDriverConfig.hpp>
+#include <config/UartDriverConfig.hpp>
 
 namespace Stm32 {
 
