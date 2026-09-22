@@ -6,6 +6,7 @@
 #ifndef STM32_UART_DRIVER_CONFIG_HPP
 #define STM32_UART_DRIVER_CONFIG_HPP
 
+#include <Stm32Config.hpp>
 #include <Fw/Types/BasicTypes.hpp>
 
 namespace Stm32::Stm32UartDriverConfig {
