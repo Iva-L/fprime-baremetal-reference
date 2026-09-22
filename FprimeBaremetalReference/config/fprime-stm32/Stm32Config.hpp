@@ -47,7 +47,7 @@
 // ======================================================================
 
 #ifndef I2C1_INSTANCE
-#define I2C1_INSTANCE (false) //!< Indicates whether the I2C1 peripheral instance is enabled
+#define I2C1_INSTANCE (true) //!< Indicates whether the I2C1 peripheral instance is enabled
 #endif  // I2C1_INSTANCE
 
 #ifndef I2C2_INSTANCE

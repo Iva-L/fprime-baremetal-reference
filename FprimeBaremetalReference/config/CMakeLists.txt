@@ -10,19 +10,19 @@
 register_fprime_config(
     ReferenceDeploymentConfig
     CONFIGURATION_OVERRIDES
-        "${CMAKE_CURRENT_LIST_DIR}/FpConfig.h"
-        "${CMAKE_CURRENT_LIST_DIR}/FpConstants.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/AcConstants.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/ComCcsdsConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/DataProductsConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/TlmChanImplCfg.hpp"
-        "${CMAKE_CURRENT_LIST_DIR}/CommandDispatcherImplCfg.hpp"
-        "${CMAKE_CURRENT_LIST_DIR}/PrmDbImplCfg.hpp"
-        "${CMAKE_CURRENT_LIST_DIR}/DpCatalogCfg.hpp"
-        "${CMAKE_CURRENT_LIST_DIR}/MpuImuSubtopologyConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/SubtopologyConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/XBeeSubtopologyConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/Bmp280SubtopologyConfig.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/Rfm69SubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/FpConfig.h"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/FpConstants.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/AcConstants.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/services/ComCcsdsConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/dataproducts/DataProductsConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/services/TlmChanImplCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/services/CommandDispatcherImplCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/services/PrmDbImplCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime/dataproducts/DpCatalogCfg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime-sensors/MpuImuSubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime-sensors/SubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime-sensors/XBeeSubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime-sensors/Bmp280SubtopologyConfig.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/fprime-sensors/Rfm69SubtopologyConfig.fpp"
     INTERFACE
 )
