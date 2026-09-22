@@ -3,7 +3,7 @@ module Rfm69 {
         constant BASE_ID = 0xC0000000
     }
 
-    instance spiDriver: Stm32.Stm32I2cDriver base id Rfm69.SubtopologyConfig.BASE_ID + 0x00002000
+    #instance spiDriver: Stm32.Stm32SpiDriver base id Rfm69.SubtopologyConfig.BASE_ID + 0x00002000
 
     instance resetGpio: Stm32.Stm32GpioDriver base id Rfm69.SubtopologyConfig.BASE_ID + 0x00005000
 
