@@ -24,11 +24,13 @@ STM32Timer ::STM32Timer(const char* const compName)
 
 STM32Timer ::~STM32Timer() {}
 
-void STM32Timer ::open(U32 periodUs) {
+void STM32Timer ::open(TimerInstance instance, U32 periodUs) {
     FW_ASSERT(periodUs > 0);
 
-    this->m_periodTicks = periodUs;  // TIM2 runs at 1 MHz: 1 tick == 1 us
+    this->m_periodTicks = periodUs;  // the timer runs at 1 MHz: 1 tick == 1 us
     this->m_tickPending = false;
+
+    this->hwSelectInstance(instance);
     this->m_nextTarget = this->hwReadCounter() + this->m_periodTicks;
 
     this->hwArmChannel(this->m_nextTarget);
