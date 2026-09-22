@@ -66,7 +66,7 @@ Like `Stm32::STM32Timer` (see its own `docs/sdd.md` 2), the real HAL callbacks a
 
 ```cpp
 // configureTopology(), after commsBufferManager sizing is known:
-const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32::UsartInstance::Usart1, USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY, BAUD_RATE);
+const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32::UsartInstance::Usart1, USART_IRQ_PREEMPT_PRIORITY, USART_IRQ_SUB_PRIORITY, BAUD_RATE);
     if(comDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open UART\n");
     }
@@ -75,6 +75,6 @@ const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32
 static_cast<Stm32::Stm32UartDriverComponentBase&>(ReferenceDeployment::comDriver).run_handlerBase(0, 0);
 ```
 
-## 5. Events and telemetry
+To use a different UART/USART instance: enable it in `Stm32Config.hpp` (its `USARTn_Instance` macro), regenerate the CubeMX project with that peripheral configured, call `open()`, then pass the matching `Stm32::I2cInstance` value to `open()`.
 
 Events: `PortOpened`, `HalError`, `UartError`, `TxRingFull`, `RxRingFull`, `TxTimeout`, `NoBuffers`. Telemetry: `BytesSent`, `BytesRecv`, `TxErrorCount`, `RxErrorCount`.

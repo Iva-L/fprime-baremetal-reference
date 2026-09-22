@@ -189,6 +189,7 @@ bool Stm32UartDriver ::hwOpen(UsartInstance instance, U32 preemptPriority, U32 s
     (void)requestedBaudRate;  // not used to configure the peripheral: CubeMX fixes the baud in usart.c
 
     UART_HandleTypeDef* const halHandle = toHalHandle(instance);
+    FW_ASSERT(halHandle != nullptr, static_cast<FwAssertArgType>(instance));
     const IRQn_Type irqn = toIrqn(instance);
 
     // DMA1 clock/NVIC must be enabled before HAL_UART_MspInit() (invoked from
