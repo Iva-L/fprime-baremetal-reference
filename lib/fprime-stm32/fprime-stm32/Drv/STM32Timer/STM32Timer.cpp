@@ -130,7 +130,9 @@ void STM32Timer ::hwSelectInstance(TimerInstance instance) {
     TIM_HandleTypeDef* const halHandle = toHalHandle(instance);
     FW_ASSERT(halHandle != nullptr, static_cast<FwAssertArgType>(instance));
 
+    FW_ASSERT(s_instance == nullptr);
     s_instance = this;
+
     s_htim = halHandle;
 }
 
