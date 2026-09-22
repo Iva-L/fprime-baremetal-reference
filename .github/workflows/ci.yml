@@ -60,12 +60,12 @@ jobs:
       - name: Run Drv/STM32UartDriver Host Tests
         run: |
           # Navigate to the STM32UartDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
 
       - name: Run Drv/STM32Timer Host Tests
         run: |
           # Navigate to the STM32Timer component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
           
       - name: Run Drv/STM32GpioDriver Host Tests
         run: |
