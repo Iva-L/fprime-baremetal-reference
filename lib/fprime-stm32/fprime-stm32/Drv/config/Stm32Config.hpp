@@ -62,4 +62,64 @@
 #define I2C4_INSTANCE (false) //!< Indicates whether the I2C4 peripheral instance is enabled
 #endif  // I2C4_INSTANCE
 
+// ======================================================================
+// TIM peripheral instances
+// ======================================================================
+
+#ifndef TIM1_INSTANCE
+#define TIM1_INSTANCE (false) //!< Indicates whether the TIM1 peripheral instance is enabled
+#endif  // TIM1_INSTANCE
+
+#ifndef TIM2_INSTANCE
+#define TIM2_INSTANCE (true) //!< Indicates whether the TIM2 peripheral instance is enabled
+#endif  // TIM2_INSTANCE
+
+#ifndef TIM3_INSTANCE
+#define TIM3_INSTANCE (false) //!< Indicates whether the TIM3 peripheral instance is enabled
+#endif  // TIM3_INSTANCE
+
+#ifndef TIM4_INSTANCE
+#define TIM4_INSTANCE (false) //!< Indicates whether the TIM4 peripheral instance is enabled
+#endif  // TIM4_INSTANCE
+
+#ifndef TIM5_INSTANCE
+#define TIM5_INSTANCE (false) //!< Indicates whether the TIM5 peripheral instance is enabled
+#endif  // TIM5_INSTANCE
+
+#ifndef TIM6_INSTANCE
+#define TIM6_INSTANCE (false) //!< Indicates whether the TIM6 peripheral instance is enabled
+#endif  // TIM6_INSTANCE
+
+#ifndef TIM7_INSTANCE
+#define TIM7_INSTANCE (false) //!< Indicates whether the TIM7 peripheral instance is enabled
+#endif  // TIM7_INSTANCE
+
+#ifndef TIM8_INSTANCE
+#define TIM8_INSTANCE (false) //!< Indicates whether the TIM8 peripheral instance is enabled
+#endif  // TIM8_INSTANCE
+
+#ifndef TIM12_INSTANCE
+#define TIM12_INSTANCE (false) //!< Indicates whether the TIM12 peripheral instance is enabled
+#endif  // TIM12_INSTANCE
+
+#ifndef TIM13_INSTANCE
+#define TIM13_INSTANCE (false) //!< Indicates whether the TIM13 peripheral instance is enabled
+#endif  // TIM13_INSTANCE
+
+#ifndef TIM14_INSTANCE
+#define TIM14_INSTANCE (false) //!< Indicates whether the TIM14 peripheral instance is enabled
+#endif  // TIM14_INSTANCE
+
+#ifndef TIM15_INSTANCE
+#define TIM15_INSTANCE (false) //!< Indicates whether the TIM15 peripheral instance is enabled
+#endif  // TIM15_INSTANCE
+
+#ifndef TIM16_INSTANCE
+#define TIM16_INSTANCE (false) //!< Indicates whether the TIM16 peripheral instance is enabled
+#endif  // TIM16_INSTANCE
+
+#ifndef TIM17_INSTANCE
+#define TIM17_INSTANCE (false) //!< Indicates whether the TIM17 peripheral instance is enabled
+#endif  // TIM17_INSTANCE
+
 #endif  // STM32_CONFIG_HPP

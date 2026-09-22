@@ -1,7 +1,7 @@
 // ======================================================================
 // \title  STM32TimerStub.cpp
 // \author ivanlara
-// \brief  HAL boundary stand-in for host-native unit tests. No TIM2
+// \brief  HAL boundary stand-in for host-native unit tests. No TIM
 //         hardware exists on the build host, so hwReadCounter()/
 //         hwSetCompare() operate on a fake, test-injectable counter
 //         instead -- no HAL/CMSIS include, no register access. Swapped in
@@ -18,6 +18,10 @@ extern U32 Stub_lastArmedTarget = 0;        // compare value passed to the most 
 extern U32 Stub_hwSetCompareCallCount = 0;  // number of hwSetCompare() reprograms
 
 namespace Stm32 {
+
+void STM32Timer ::hwSelectInstance(TimerInstance instance) {
+    (void)instance;  // no HAL handle to resolve on the host
+}
 
 void STM32Timer ::hwArmChannel(U32 target) {
     Stub_channelArmed = true;

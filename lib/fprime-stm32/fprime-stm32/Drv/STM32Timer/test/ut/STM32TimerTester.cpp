@@ -42,7 +42,7 @@ void STM32TimerTester ::resetStubState() {
 // ----------------------------------------------------------------------
 
 void STM32TimerTester ::testOpenArms() {
-    this->component.open(1000);
+    this->component.open(Stm32::TimerInstance::Tim2, 1000);
     ASSERT_EVENTS_Configured_SIZE(1);
     ASSERT_EVENTS_Configured(0, 1000);
     ASSERT_EQ(this->component.m_nextTarget, 1000u);
@@ -55,7 +55,7 @@ void STM32TimerTester ::testOpenArms() {
 }
 
 void STM32TimerTester ::testPollWithoutTick() {
-    this->component.open(1000);
+    this->component.open(Stm32::TimerInstance::Tim2, 1000);
     this->component.poll();
     ASSERT_from_CycleOut_SIZE(0);
     ASSERT_TLM_TickCount_SIZE(0);
@@ -66,7 +66,7 @@ void STM32TimerTester ::testPollWithoutTick() {
 }
 
 void STM32TimerTester ::testPollWithTick() {
-    this->component.open(1000);
+    this->component.open(Stm32::TimerInstance::Tim2, 1000);
     this->component.signalTick();
     this->component.poll();
     ASSERT_from_CycleOut_SIZE(1);
@@ -82,7 +82,7 @@ void STM32TimerTester ::testPollWithTick() {
 }
 
 void STM32TimerTester ::testOverrunDetection() {
-    this->component.open(100);
+    this->component.open(Stm32::TimerInstance::Tim2, 100);
     // Advance the fake counter well past the armed compare target so poll()
     // detects the target already elapsed.
     this->component.m_stubCounter = 500;
@@ -104,7 +104,7 @@ void STM32TimerTester ::testPollWithTickNoOverrunAtExactBoundary() {
     // an overrun: the real driver's signed-difference check is `>= 0`, so
     // this boundary is the one case most likely to regress if that
     // comparison is ever "fixed" to `> 0` by mistake.
-    this->component.open(1000);
+    this->component.open(Stm32::TimerInstance::Tim2, 1000);
     this->component.signalTick();
     this->component.m_stubCounter = 2000;  // exactly the next target poll() will compute
     this->component.poll();

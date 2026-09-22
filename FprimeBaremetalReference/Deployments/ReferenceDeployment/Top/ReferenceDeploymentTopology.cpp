@@ -29,8 +29,8 @@ Svc::ActiveRateGroup::ContextArray rateGroup_0_25HzContext(0);
 enum TopologyConstants {
     // USART1 configuration
     BAUD_RATE = 115200,
-    USART1_IRQ_PREEMPT_PRIORITY = 0,
-    USART1_IRQ_SUB_PRIORITY = 0
+    USART_IRQ_PREEMPT_PRIORITY = 0,
+    USART_IRQ_SUB_PRIORITY = 0
 };
 
 /**
@@ -56,7 +56,7 @@ void configureTopology() {
     rateGroupDriver.configure(rateGroupDivisorsSet);
 
     // The timer rate is set to 10000 microseconds (10 ms)
-    timer.open(10000);
+    timer.open(Stm32::TimerInstance::Tim2, 10000);
 
     // Rate groups require context arrays.
     rateGroup_1Hz.configure(rateGroup_1HzContext);
@@ -70,7 +70,7 @@ void configureTopology() {
     FileHandling::prmDb.configure("PrmDb.dat");
 
     const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32::UsartInstance::Usart1,
-                                                        USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY,
+                                                        USART_IRQ_PREEMPT_PRIORITY, USART_IRQ_SUB_PRIORITY,
                                                         BAUD_RATE);
     if(comDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open UART\n");
