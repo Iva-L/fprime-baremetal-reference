@@ -42,4 +42,24 @@
 #define UART8_INSTANCE (false) //!< Indicates whether the UART8 peripheral instance is enabled
 #endif  // UART8_INSTANCE
 
+// ======================================================================
+// I2C peripheral instances
+// ======================================================================
+
+#ifndef I2C1_INSTANCE
+#define I2C1_INSTANCE (true) //!< Indicates whether the I2C1 peripheral instance is enabled
+#endif  // I2C1_INSTANCE
+
+#ifndef I2C2_INSTANCE
+#define I2C2_INSTANCE (false) //!< Indicates whether the I2C2 peripheral instance is enabled
+#endif  // I2C2_INSTANCE
+
+#ifndef I2C3_INSTANCE
+#define I2C3_INSTANCE (false) //!< Indicates whether the I2C3 peripheral instance is enabled
+#endif  // I2C3_INSTANCE
+
+#ifndef I2C4_INSTANCE
+#define I2C4_INSTANCE (false) //!< Indicates whether the I2C4 peripheral instance is enabled
+#endif  // I2C4_INSTANCE
+
 #endif  // STM32_CONFIG_HPP

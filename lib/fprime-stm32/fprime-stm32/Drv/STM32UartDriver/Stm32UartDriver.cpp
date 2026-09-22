@@ -32,34 +32,50 @@ UART_HandleTypeDef* toHalHandle(Stm32::UsartInstance instance) {
         case Stm32::UsartInstance::Usart1:
             #if USART1_UART_INSTANCE
             return &huart1;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Usart2:
             #if USART2_UART_INSTANCE
             return &huart2;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Usart3:
             #if USART3_UART_INSTANCE
             return &huart3;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Uart4:
             #if UART4_INSTANCE
             return &huart4;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Uart5:
             #if UART5_INSTANCE
             return &huart5;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Usart6:
             #if USART6_UART_INSTANCE
             return &huart6;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Uart7:
             #if UART7_INSTANCE
             return &huart7;
+            #else 
+            return nullptr;
             #endif
         case Stm32::UsartInstance::Uart8:
             #if UART8_INSTANCE
             return &huart8;
+            #else 
+            return nullptr;
             #endif
         default:
             FW_ASSERT(false, static_cast<FwAssertArgType>(instance));
