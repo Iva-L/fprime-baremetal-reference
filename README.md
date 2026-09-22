@@ -181,5 +181,3 @@ Two independent layers of automated testing back this deployment:
   that doesn't exist in the fpp model on `stm32h7` and breaks the build. See
   `lib/fprime-stm32/README.md`'s "Adding a sensor" section for the exact
   pattern already used for `MpuImu`.
-
-The personal progress checklist is available in [Checklist.md](Checklist.md).
