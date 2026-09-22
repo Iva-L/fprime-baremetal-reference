@@ -24,6 +24,7 @@ register_fprime_library(
         "${CMAKE_CURRENT_LIST_DIR}/STM32TimerCommon.cpp"
         "${STM32_TIMER_IMPL_SOURCE}"
     DEPENDS
+        FprimeStm32Config
         ${STM32_TIMER_IMPL_DEPENDS}
 )
 
@@ -36,6 +37,7 @@ register_fprime_ut(
         "${CMAKE_CURRENT_LIST_DIR}/test/ut/STM32TimerTestMain.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/test/ut/STM32TimerTester.cpp"
     DEPENDS
+    FprimeStm32Config
     STest # For rules-based testing
     UT_AUTO_HELPERS
 )
