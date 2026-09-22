@@ -6,8 +6,7 @@
 # different hardware never requires forking this library.
 ####
 
-add_library(FprimeStm32Config INTERFACE)
-target_include_directories(FprimeStm32Config INTERFACE "${CMAKE_CURRENT_LIST_DIR}/Drv/config")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Drv/config")
 
 ####
 # Fully hardware-agnostic infra every STM32 bare-metal project needs: the
