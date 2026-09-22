@@ -34,10 +34,14 @@ used by the direct bare-metal GPIO examples.
 
 - `Os/Stm32H7`: STM32H7 bare-metal delegates for Task, Mutex, Queue, and RawTime
 - `Drv/STM32GpioDriver`: passive GPIO input/output driver
-- `Drv/STM32Timer`: TIM2 channel 2 output-compare tick driver
+- `Drv/STM32Timer`: channel-2 output-compare tick driver, instance-selectable
+  (`Stm32::TimerInstance::Tim1`/`Tim2`/`Tim3`/`Tim4`/`...`) via `open()`
 - `Drv/STM32UartDriver`: USART1 DMA-backed byte-stream driver
 - `Drv/STM32I2cDriver`: blocking/polled I2C master driver (`Drv.I2c`)
-- `Drv/config`: driver-tuning headers (e.g. `UartDriverConfig.hpp`)
+- `Drv/config`: driver-tuning headers (e.g. `UartDriverConfig.hpp`) and
+  `Stm32Config.hpp`, the per-peripheral-instance enable/disable switchboard
+  used by every driver below (see "Enabling and selecting peripheral
+  instances")
 - `Allocator`: fixed-pool bootstrap allocator + newlib `--wrap` traps
   enforcing the no-heap-after-bootstrap rule -- fully hardware-agnostic, so
   every project gets it without hand-rolling one
@@ -63,6 +67,28 @@ into each deployment executable, rather than only through the `FprimeStm32`
 static library, so its strong handlers override the startup file's weak
 `Default_Handler` aliases -- see the NOTE in
 `FprimeBaremetalReference/Hardware/CMakeLists.txt`.
+
+### Enabling and selecting peripheral instances
+
+`Stm32UartDriver`, `Stm32I2cDriver`, and `STM32Timer` all resolve their
+peripheral instance (`USART1_UART_INSTANCE`, `I2C1_INSTANCE`, `TIM2_INSTANCE`,
+...) through `#define`s in `Drv/config/Stm32Config.hpp`, each defaulting to
+`false` except the instances this reference board already uses. A driver's
+`toHalHandle(instance)` returns `nullptr` for a `false` instance, and the
+calling code immediately `FW_ASSERT`s on that `nullptr` — selecting a
+disabled instance in an `open()` call is a build-time configuration mistake,
+not a runtime condition to gracefully handle.
+
+The library's copy of `Stm32Config.hpp` is the default; a consuming project
+overrides it by placing its own copy at the same relative path under its
+`settings.ini`-configured `config_directory` (this project's override lives
+at `FprimeBaremetalReference/config/fprime-stm32/Stm32Config.hpp`). When
+retargeting this library to a new board, edit only the override copy — enable
+the instances your `.ioc` actually configured, and pass the matching enum
+value (`Stm32::I2cInstance::I2c1`, `Stm32::TimerInstance::Tim2`, ...) to the
+driver's `open()` call from the topology's `configureTopology()`. Each
+sensor's own `docs/sdd.md` under `lib/fprime-sensors` documents this
+enable-then-select pairing for its specific port.
 
 ### Adding a new chip family
 
