@@ -1,7 +1,7 @@
 # F´ Project Tutorial for STM32-Supported MCUs
 
 >[!IMPORTANT]
-> This tutorial is only compatible with the STM32H753XIH6 chip. Trying to follow this tutorial with a different STM32 chip may result in unexpected behavior. Support for other chips may be added in future updates.
+> This project showcases the STM32H753XIH6 running on a STM32H753I-EVAL2 board as a worked example. Peripheral choice, pins, and clock configuration are always board-specific and always require your own CubeMX configuration - but the `fprime-stm32 sync` step that wires CubeMX's generated code into the F' CMake build works for any STM32H7 chip/board, not just this one.
 
 This tutorial is meant for F´ users who want to create and develop an F´ project for any of the F´ supported STM32 microcontrollers. If you are a new F´ user seeking to learn about the basics of creating components, using events, telemetry, commands, and parameters, and integrating topologies with the goal of running F´ on embedded hardware, we recommend taking the [LED Blinker tutorial](https://fprime.jpl.nasa.gov/latest/tutorials-led-blinker/docs/led-blinker) first.
 
@@ -116,11 +116,16 @@ The `/Hardware` directory is used to store hardware-specific configurations and 
 ```sh
 # In Root Project Directory
 cp -r lib/fprime-stm32/fprime-stm32/Templates/stm32h7/Hardware Stm32h7Project
-
-cd Stm32h7Project/Hardware
 ```
 
 Inside the `/Hardware` directory, you can find the hardware-specific configurations for your STM32 project. You can now modify these files according to your project's requirements.
+
+You'll also need the `fprime-stm32` CLI tool, which wires a CubeMX-generated project into this `/Hardware` directory and the F' CMake build for you:
+
+```sh
+# In Root Project Directory
+pip install -e lib/fprime-stm32/tools/fprime-stm32-cli
+```
 
 In the next step we will be creating a STM32CubeMX project for your STM32 MCU to configure the peripherals and generate the initialization code.
 
@@ -132,8 +137,9 @@ Steps to Create a STM32CubeMX Project:
 
 1. Open STM32CubeMX and create a new project for your STM32 MCU.
 2. Configure the peripherals and middleware according to your project requirements.
-3. Generate the initialization code and HAL libraries.
-4. Copy the generated code into the appropriate directories within your F´ project, ensuring that the HAL libraries are accessible to F´.
+3. In Project Manager -> Project, set **Toolchain/IDE** to **CMake**. This matters: it's what makes CubeMX generate `cmake/stm32cubemx/CMakeLists.txt`, which `fprime-stm32 sync` reads to learn which chip, HAL modules, and peripheral-init files your project actually needs.
+4. Generate the project directly into a new subdirectory of `Hardware/`, named after your chip (e.g. `Hardware/stm32h743_hal/` for an STM32H743). Generate the initialization code and HAL libraries.
+5. Run `fprime-stm32 sync Hardware/<name>_hal` to wire that generated project into the F' CMake build. You never hand-copy or hand-edit `Hardware/CMakeLists.txt`, `Hardware/linker/`, or `Hardware/startup/` yourself.
 
 > [!NOTE]
 > If you have worked with STM32CubeMX before, this process should feel familiar...
@@ -179,8 +185,36 @@ Here is an example of how to create a STM32CubeMX project for the STM32H753XIH6 
 
 ### 8c. One Timer peripheral for the custom microsecond clock **(TIM2)**.
 
-### 8d. Generate the project and note the location of the generated code.
-### 8e. Copy the generated code into the `/Hardware` directory of your F´ project.
+### 8d. Generate the project directly into `Hardware/stm32h753_hal/` (Toolchain/IDE must be set to "CMake").
+
+### 8e. Run `fprime-stm32 sync` to wire the generated project into the F' CMake build:
+
+```sh
+# In Root Project Directory
+fprime-stm32 sync Hardware/stm32h753_hal
+```
+
+This patches the CubeMX-generated linker script and startup file for F´'s bare-metal zero-dynamic-memory architecture (DMA-safe buffers in AXI SRAM, CPU-only state in DTCM), writes them to `Hardware/linker/` and `Hardware/startup/`, and regenerates `Hardware/CMakeLists.txt` from CubeMX's own `cmake/stm32cubemx/CMakeLists.txt` so the `FprimeStm32` library target picks up exactly the HAL sources/includes/defines your peripheral configuration needs - for any STM32H7 chip, not just the STM32H753XIH6 used in this example. Add `--dry-run` first to preview the changes.
+
+`sync` also exports three CMake cache variables from `Hardware/CMakeLists.txt` - `FPRIME_STM32_LINKER_SCRIPT`, `FPRIME_STM32_STARTUP_SOURCE`, `FPRIME_STM32_IT_SOURCE` - so your deployment's `CMakeLists.txt` never needs to hardcode a chip-specific filename. Reference them once when you set up your deployment:
+
+```cmake
+register_fprime_deployment(
+    YourDeployment
+    SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
+        "${FPRIME_STM32_STARTUP_SOURCE}"
+        "${FPRIME_STM32_IT_SOURCE}"
+    ...
+)
+
+target_link_options(YourDeployment PRIVATE
+    "-T${FPRIME_STM32_LINKER_SCRIPT}"
+    ...
+)
+```
+
+Re-run `fprime-stm32 sync` any time you regenerate `Hardware/stm32h753_hal/` from CubeMX (e.g. after adding a peripheral) - it re-derives everything from the current CubeMX output and preserves any project-specific linker placement rules you've hand-added since the last sync (e.g. pinning a specific symbol into DTCM).
 
 ## 7. Building the Project for STM32
 
