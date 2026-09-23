@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from fprime_stm32.errors import ProjectDiscoveryError, StartupScriptError, LinkerScriptError
+from fprime_stm32.errors import CubeMxCMakeError, ProjectDiscoveryError, StartupScriptError, LinkerScriptError
 
 
 @dataclass
@@ -16,6 +16,7 @@ class CubeMxSources:
     linker_script: Path
     startup_script: Path
     chip_tag: str
+    cubemx_cmake_file: Path
 
 
 def find_fprime_project_root(cwd: Path, deployment: str | None = None) -> ProjectContext:
@@ -81,4 +82,17 @@ def discover_cubemx_sources(cubemx_path: Path) -> CubeMxSources:
     chip_match = re.search(r"stm32h7\w*", startup_script.stem, re.IGNORECASE)
     chip_tag = chip_match.group(0) if chip_match else startup_script.stem
 
-    return CubeMxSources(linker_script=linker_script, startup_script=startup_script, chip_tag=chip_tag)
+    cubemx_cmake_file = cubemx_path / "cmake" / "stm32cubemx" / "CMakeLists.txt"
+    if not cubemx_cmake_file.is_file():
+        raise CubeMxCMakeError(
+            f"No CubeMX-generated {cubemx_cmake_file} found. Regenerate this project in "
+            "STM32CubeMX/STM32CubeIDE with Project Manager -> Project -> Toolchain/IDE set to "
+            "'CMake' (not Makefile/IAR/Keil) - that option is what produces cmake/stm32cubemx/CMakeLists.txt."
+        )
+
+    return CubeMxSources(
+        linker_script=linker_script,
+        startup_script=startup_script,
+        chip_tag=chip_tag,
+        cubemx_cmake_file=cubemx_cmake_file,
+    )
