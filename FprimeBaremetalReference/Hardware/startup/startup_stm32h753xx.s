@@ -94,7 +94,6 @@ FillZerobss:
 LoopFillZerobss:
   cmp r2, r4
   bcc FillZerobss
-
   ldr r2, =_sdtcm_bss
   ldr r4, =_edtcm_bss
   movs r3, #0
@@ -110,6 +109,7 @@ LoopFillZeroDtcmBss:
 
 /* Register the fixed allocator before any C++ constructor can call new. */
   bl Stm32_registerBootstrapAllocator
+
 
 /* Call static constructors */
     bl __libc_init_array
@@ -769,3 +769,5 @@ g_pfnVectors:
 
    .weak      WAKEUP_PIN_IRQHandler
    .thumb_set WAKEUP_PIN_IRQHandler,Default_Handler
+
+
