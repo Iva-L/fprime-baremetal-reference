@@ -57,3 +57,34 @@ def test_axi_sram_section_appended():
 def test_braces_stay_balanced():
     patched, _ = _patch()
     assert patched.count("{") == patched.count("}")
+
+
+def test_preserves_custom_wildcards_from_existing_output_across_resync():
+    text = FIXTURE.read_text()
+    memory_map = parse_memory_block(text)
+
+    first_pass, _ = patch_linker_script(text, memory_map)
+    # Simulate a hand-added, project-specific per-symbol placement rule (e.g. pinning a
+    # -fdata-sections split global into DTCM) added to the output after a prior sync.
+    hand_edited = first_pass.replace(
+        "*(.dtcm_bss.*)\n",
+        "*(.dtcm_bss.*)\n  *(.bss._ZN7CdhCore7cmdDispE)\n",
+        1,
+    )
+
+    resynced, actions = patch_linker_script(text, memory_map, existing_output_text=hand_edited)
+
+    assert "*(.bss._ZN7CdhCore7cmdDispE)" in resynced
+    assert any("Preserved 1 custom .dtcm_bss placement rule" in a for a in actions)
+
+
+def test_does_not_duplicate_standard_wildcards_as_extras():
+    text = FIXTURE.read_text()
+    memory_map = parse_memory_block(text)
+    first_pass, _ = patch_linker_script(text, memory_map)
+
+    resynced, actions = patch_linker_script(text, memory_map, existing_output_text=first_pass)
+
+    assert resynced.count("*(.dtcm_bss)") == 1
+    assert resynced.count("*(.dtcm_bss.*)") == 1
+    assert not any("Preserved" in a for a in actions)
