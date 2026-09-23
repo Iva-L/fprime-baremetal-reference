@@ -10,11 +10,33 @@ F´ (F Prime) is a component-driven framework for developing and deploying
 spaceflight and other embedded software applications. See the
 [F´ website](https://fprime.jpl.nasa.gov).
 
-Board-specific STM32H7 hardware, OSAL, HAL, and driver documentation is kept in
-the reusable [`lib/fprime-stm32` module](lib/fprime-stm32/README.md). Sensor
-components (currently an MPU-6050 IMU) come from the
-[`fprime-sensors`](https://github.com/fprime-community/fprime-sensors)
+`lib/fprime-stm32` is a chip-family-portable F´ library (STM32H7 today, other
+STM32 families addable without forking it): reusable OSAL delegates, drivers,
+and a bootstrap allocator that any consuming project gets "for free," while
+everything CubeMX-generated or board-specific (this board's `.ioc` output,
+clock/tick-source glue, the linker script) stays owned by this project in
+`FprimeBaremetalReference/Hardware/`. See the
+[`lib/fprime-stm32` module README](lib/fprime-stm32/README.md) for the full
+architecture and the driver-configuration pattern described below. Sensor
+components (currently an MPU-6050 IMU, wired directly to `Stm32I2cDriver`) come
+from the [`fprime-sensors`](https://github.com/fprime-community/fprime-sensors)
 submodule and connect directly to the STM32 drivers' ports.
+
+## Configuring which hardware ports are enabled
+
+Every STM32 driver (`Stm32UartDriver`, `Stm32I2cDriver`, `STM32Timer`) reads
+which peripheral instance it's allowed to use from
+`Stm32Config.hpp` — a `#define`-per-instance file (e.g. `I2C1_INSTANCE`,
+`TIM2_INSTANCE`) that keeps a driver from touching a peripheral your board's
+`.ioc` never actually configured. The library ships a default copy at
+`lib/fprime-stm32/Drv/config/Stm32Config.hpp`; this project overrides it with
+its own copy at `FprimeBaremetalReference/config/fprime-stm32/Stm32Config.hpp`
+(via `settings.ini`'s `config_directory`) to match this board's real wiring.
+When starting a new project from this reference, edit the override copy, not
+the library's default. Selecting a disabled instance in a driver's `open()`
+call is treated as a build-time mistake and fails a `FW_ASSERT`, not a
+runtime condition to recover from — see each sensor's `docs/sdd.md` for the
+exact enable-then-select steps.
 
 ## Build
 
@@ -159,5 +181,3 @@ Two independent layers of automated testing back this deployment:
   that doesn't exist in the fpp model on `stm32h7` and breaks the build. See
   `lib/fprime-stm32/README.md`'s "Adding a sensor" section for the exact
   pattern already used for `MpuImu`.
-
-The personal progress checklist is available in [Checklist.md](Checklist.md).

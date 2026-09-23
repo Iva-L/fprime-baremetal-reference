@@ -5,9 +5,9 @@
 // ======================================================================
 // Provides access to autocoded functions
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
-#include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 #include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
-#include <UartDriverConfig.hpp>
+#include <config/UartDriverConfig.hpp>
 #include <Fw/Logger/Logger.hpp>
 
 #include "stm32h7xx_hal.h"
@@ -29,8 +29,8 @@ Svc::ActiveRateGroup::ContextArray rateGroup_0_25HzContext(0);
 enum TopologyConstants {
     // USART1 configuration
     BAUD_RATE = 115200,
-    USART1_IRQ_PREEMPT_PRIORITY = 0,
-    USART1_IRQ_SUB_PRIORITY = 0
+    USART_IRQ_PREEMPT_PRIORITY = 0,
+    USART_IRQ_SUB_PRIORITY = 0
 };
 
 /**
@@ -50,13 +50,13 @@ void configureTopology() {
     Os::Baremetal::MicroFs::MicroFsSetCfgBins(microFsConfig, 2);
     Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 0, 1024, 2);
     Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 1, 4096, 1);
-    Os::Baremetal::MicroFs::MicroFsInit(microFsConfig, 0, getBootstrapAllocator());
+    Os::Baremetal::MicroFs::MicroFsInit(microFsConfig, 0, Stm32::getBootstrapAllocator());
 
     // Rate group driver needs a divisor list
     rateGroupDriver.configure(rateGroupDivisorsSet);
 
     // The timer rate is set to 10000 microseconds (10 ms)
-    timer.open(10000);
+    timer.open(Stm32::TimerInstance::Tim2, 10000);
 
     // Rate groups require context arrays.
     rateGroup_1Hz.configure(rateGroup_1HzContext);
@@ -64,13 +64,13 @@ void configureTopology() {
     rateGroup_0_25Hz.configure(rateGroup_0_25HzContext);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    cmdSeq.allocateBuffer(0, getBootstrapAllocator(), 5 * 1024);
+    cmdSeq.allocateBuffer(0, Stm32::getBootstrapAllocator(), 5 * 1024);
 
     // PrmDb file name must be supplied by the using topology
     FileHandling::prmDb.configure("PrmDb.dat");
 
     const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32::UsartInstance::Usart1,
-                                                        USART1_IRQ_PREEMPT_PRIORITY, USART1_IRQ_SUB_PRIORITY,
+                                                        USART_IRQ_PREEMPT_PRIORITY, USART_IRQ_SUB_PRIORITY,
                                                         BAUD_RATE);
     if(comDriverOpened == Fw::Success::FAILURE) {
         Fw::Logger::log("[ERROR] Failed to open UART\n");
@@ -124,7 +124,7 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
 
     // Resource deallocation
-    cmdSeq.deallocateBuffer(getBootstrapAllocator());
+    cmdSeq.deallocateBuffer(Stm32::getBootstrapAllocator());
 
     tearDownComponents(state);
     deinitComponents(state);

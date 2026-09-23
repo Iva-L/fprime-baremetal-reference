@@ -3,14 +3,14 @@
 // \author ivanlara
 // \brief Bare-metal cyclic executive entry point with integrated hardware LED blinker.
 // ======================================================================
-#include <ReferenceDeployment/BootstrapAllocator.hpp>
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopology.hpp>
 #include <ReferenceDeployment/Top/ReferenceDeploymentTopologyAc.hpp>
 
 #include <Os/Os.hpp>
 #include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
-#include <lib/fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
-#include <lib/fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
+#include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
 #include <main.h>
 #include <stm32h7_clock.h>
 #include <tim2_clock.h>
@@ -32,7 +32,7 @@ int main() {
 
     ReferenceDeployment::TopologyState inputs = {};
     ReferenceDeployment::setupTopology(inputs);
-    ReferenceDeployment::lockBootstrapAllocator();
+    Stm32::lockBootstrapAllocator();
 
     while (true) {
 

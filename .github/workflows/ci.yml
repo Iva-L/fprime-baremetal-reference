@@ -60,19 +60,19 @@ jobs:
       - name: Run Drv/STM32UartDriver Host Tests
         run: |
           # Navigate to the STM32UartDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32UartDriver && fprime-util check --coverage
 
       - name: Run Drv/STM32Timer Host Tests
         run: |
           # Navigate to the STM32Timer component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32Timer && fprime-util check --coverage
           
       - name: Run Drv/STM32GpioDriver Host Tests
         run: |
           # Navigate to the STM32GpioDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage
 
       - name: Run Drv/STM32I2cDriver Host Tests
         run: |
           # Navigate to the STM32I2cDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32I2cDriver && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32I2cDriver && fprime-util check --coverage

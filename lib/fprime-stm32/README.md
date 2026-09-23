@@ -32,21 +32,83 @@ used by the direct bare-metal GPIO examples.
 
 ## Contents
 
-- `Drivers/CMSIS`: STM32H7 CMSIS device headers and startup support
-- `Drivers/STM32H7xx_HAL_Driver`: the selected STM32 HAL implementation
-- `Os`: STM32H7 bare-metal delegates for Task, Mutex, Queue, and RawTime
+- `Os/Stm32H7`: STM32H7 bare-metal delegates for Task, Mutex, Queue, and RawTime
 - `Drv/STM32GpioDriver`: passive GPIO input/output driver
-- `Drv/STM32Timer`: TIM2 channel 2 output-compare tick driver
+- `Drv/STM32Timer`: channel-2 output-compare tick driver, instance-selectable
+  (`Stm32::TimerInstance::Tim1`/`Tim2`/`Tim3`/`Tim4`/`...`) via `open()`
 - `Drv/STM32UartDriver`: USART1 DMA-backed byte-stream driver
 - `Drv/STM32I2cDriver`: blocking/polled I2C master driver (`Drv.I2c`)
-- `include`: shared HAL configuration, cache helpers, and interrupt declarations
-- `src`: clock, MSP, peripheral, interrupt, and TIM2 clock support
+- `Drv/config`: driver-tuning headers (e.g. `UartDriverConfig.hpp`) and
+  `Stm32Config.hpp`, the per-peripheral-instance enable/disable switchboard
+  used by every driver below (see "Enabling and selecting peripheral
+  instances")
+- `Allocator`: fixed-pool bootstrap allocator + newlib `--wrap` traps
+  enforcing the no-heap-after-bootstrap rule -- fully hardware-agnostic, so
+  every project gets it without hand-rolling one
+- `Core/CortexM7`: ARM-core-level helpers (currently just D-cache
+  maintenance), grouped by core rather than by ST family since they only
+  depend on which Cortex-M core is in use
 
-`CMakeLists.txt` builds the HAL support as `FprimeStm32` and registers the OSAL
-and driver subdirectories with F´. The real interrupt implementation in
-`src/stm32h7xx_it.c` must be linked directly into the deployment executable,
-rather than only through the static library, so its strong handlers override the
-startup file's weak `Default_Handler` aliases.
+This library is hardware-agnostic: it contains no CubeMX-generated code and
+no board-specific source. It only expects a CMake target named `FprimeStm32`
+to already exist -- built and exposed by the *consuming* project, along with
+its public include paths for `main.h`, `stm32h7xx_hal_conf.h`, and the rest
+of the CubeMX/HAL headers. In this repository that target is defined in
+`FprimeBaremetalReference/Hardware/CMakeLists.txt`, which builds the actual
+CubeMX-generated project (regenerable in place from its own `.ioc` file) plus
+a handful of hand-written, project-specific clock/tick-source glue (which
+timer backs `Os::RawTime`, the exact PLL/oscillator sequence -- these are
+peripheral-*role* choices baked into one board's `.ioc`, not family-wide
+constants, so they stay project-owned even though they rarely change). This
+split means retargeting this library to different hardware never requires
+forking it -- only editing the consuming project's own `Hardware/` directory.
+The real interrupt implementation (`stm32h7xx_it.c`) must be linked directly
+into each deployment executable, rather than only through the `FprimeStm32`
+static library, so its strong handlers override the startup file's weak
+`Default_Handler` aliases -- see the NOTE in
+`FprimeBaremetalReference/Hardware/CMakeLists.txt`.
+
+### Enabling and selecting peripheral instances
+
+`Stm32UartDriver`, `Stm32I2cDriver`, and `STM32Timer` all resolve their
+peripheral instance (`USART1_UART_INSTANCE`, `I2C1_INSTANCE`, `TIM2_INSTANCE`,
+...) through `#define`s in `Drv/config/Stm32Config.hpp`, each defaulting to
+`false` except the instances this reference board already uses. A driver's
+`toHalHandle(instance)` returns `nullptr` for a `false` instance, and the
+calling code immediately `FW_ASSERT`s on that `nullptr` — selecting a
+disabled instance in an `open()` call is a build-time configuration mistake,
+not a runtime condition to gracefully handle.
+
+The library's copy of `Stm32Config.hpp` is the default; a consuming project
+overrides it by placing its own copy at the same relative path under its
+`settings.ini`-configured `config_directory` (this project's override lives
+at `FprimeBaremetalReference/config/fprime-stm32/Stm32Config.hpp`). When
+retargeting this library to a new board, edit only the override copy — enable
+the instances your `.ioc` actually configured, and pass the matching enum
+value (`Stm32::I2cInstance::I2c1`, `Stm32::TimerInstance::Tim2`, ...) to the
+driver's `open()` call from the topology's `configureTopology()`. Each
+sensor's own `docs/sdd.md` under `lib/fprime-sensors` documents this
+enable-then-select pairing for its specific port.
+
+### Adding a new chip family
+
+`Os/Stm32H7` and the `Drv/STM32*` drivers only reach HAL functionality
+through CubeMX's own per-peripheral headers (`main.h`, `gpio.h`, `usart.h`,
+`i2c.h`, `tim.h`, `dma.h`) -- CubeMX generates these under the *same* names
+for every STM32 family, unlike the family-named umbrella headers
+(`stm32h7xx_hal.h`, `stm32f4xx_hal.h`, ...). Never include a family-named HAL
+header directly from library code; include the matching CubeMX per-peripheral
+header instead (it chains to the right family headers with the right
+pre-defines already set up). This is what keeps `Drv/STM32*` family-portable
+without any per-family duplication.
+
+`Os/Stm32H7` itself *is* family-specific (its name says so) because OSAL
+backends for different families are mutually exclusive per build. To add a
+new family: create `Os/Stm32<Family>/` alongside it with the same four
+`register_os_implementation` calls (`SUFFIX` = the new family name), and add
+an `elseif (FPRIME_PLATFORM STREQUAL "stm32<family>")` branch in
+`Os/CMakeLists.txt`. The `Drv/STM32*/CMakeLists.txt` real/stub selection
+already matches any `stm32*` platform, so no change is needed there.
 
 ## Integration and build
 
