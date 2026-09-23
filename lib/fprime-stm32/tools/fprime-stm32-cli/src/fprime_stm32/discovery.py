@@ -1,0 +1,84 @@
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+from fprime_stm32.errors import ProjectDiscoveryError, StartupScriptError, LinkerScriptError
+
+
+@dataclass
+class ProjectContext:
+    namespace_root: Path
+    hardware_dir: Path
+
+
+@dataclass
+class CubeMxSources:
+    linker_script: Path
+    startup_script: Path
+    chip_tag: str
+
+
+def find_fprime_project_root(cwd: Path, deployment: str | None = None) -> ProjectContext:
+    """Locate the F' deployment namespace root (the directory containing Hardware/)."""
+    if deployment is not None:
+        hardware_dir = cwd / deployment / "Hardware"
+        if not hardware_dir.is_dir():
+            raise ProjectDiscoveryError(
+                f"--deployment {deployment!r} does not contain a Hardware/ directory "
+                f"(expected {hardware_dir})"
+            )
+        return ProjectContext(namespace_root=cwd / deployment, hardware_dir=hardware_dir)
+
+    direct = cwd / "Hardware"
+    if direct.is_dir():
+        return ProjectContext(namespace_root=cwd, hardware_dir=direct)
+
+    candidates = sorted(p.parent for p in cwd.glob("*/Hardware") if p.is_dir())
+    if len(candidates) == 1:
+        return ProjectContext(namespace_root=candidates[0], hardware_dir=candidates[0] / "Hardware")
+    if len(candidates) > 1:
+        names = ", ".join(c.name for c in candidates)
+        raise ProjectDiscoveryError(
+            f"Found multiple deployment namespaces with a Hardware/ directory ({names}). "
+            "Run from inside the target deployment directory, or pass --deployment <name>."
+        )
+
+    raise ProjectDiscoveryError(
+        f"No F' project found in {cwd}. Expected a 'Hardware/' directory here, or a "
+        "'<Deployment>/Hardware/' directory one level down. Run this command from the "
+        "root of an F' deployment project."
+    )
+
+
+def _find_one(candidates: list[Path], kind: str) -> Path:
+    if not candidates:
+        raise LinkerScriptError(f"No {kind} found") if kind == "linker script" else StartupScriptError(
+            f"No {kind} found"
+        )
+    if len(candidates) > 1:
+        listing = "\n".join(f"  - {c}" for c in candidates)
+        message = f"Found multiple candidate {kind}s, expected exactly one:\n{listing}"
+        raise LinkerScriptError(message) if kind == "linker script" else StartupScriptError(message)
+    return candidates[0]
+
+
+def discover_cubemx_sources(cubemx_path: Path) -> CubeMxSources:
+    if not cubemx_path.is_dir():
+        raise ProjectDiscoveryError(f"CubeMX project path does not exist or is not a directory: {cubemx_path}")
+
+    linker_candidates = sorted(cubemx_path.glob("*FLASH.ld"))
+    if not linker_candidates:
+        linker_candidates = sorted(cubemx_path.glob("*.ld"))
+    if not linker_candidates:
+        linker_candidates = sorted(cubemx_path.glob("build/**/*.ld"))
+    linker_script = _find_one(linker_candidates, "linker script")
+
+    startup_candidates = sorted((cubemx_path / "Core" / "Startup").glob("startup_stm32h7*.s"))
+    if not startup_candidates:
+        startup_candidates = sorted(cubemx_path.glob("startup_stm32h7*.s"))
+    startup_script = _find_one(startup_candidates, "startup assembly file")
+
+    chip_match = re.search(r"stm32h7\w*", startup_script.stem, re.IGNORECASE)
+    chip_tag = chip_match.group(0) if chip_match else startup_script.stem
+
+    return CubeMxSources(linker_script=linker_script, startup_script=startup_script, chip_tag=chip_tag)
