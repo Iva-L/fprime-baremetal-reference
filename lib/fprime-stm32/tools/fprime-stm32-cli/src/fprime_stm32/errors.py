@@ -12,3 +12,7 @@ class LinkerScriptError(CliError):
 
 class StartupScriptError(CliError):
     """Raised when a CubeMX startup assembly file is missing or an unrecognized template."""
+
+
+class CubeMxCMakeError(CliError):
+    """Raised when the CubeMX-generated cmake/stm32cubemx/CMakeLists.txt is missing or malformed."""

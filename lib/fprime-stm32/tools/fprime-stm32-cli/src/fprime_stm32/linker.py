@@ -3,33 +3,46 @@ import re
 from fprime_stm32.errors import LinkerScriptError
 from fprime_stm32.memory_model import MemoryMap
 
-DTCM_BSS_BLOCK = """.dtcm_bss (NOLOAD) : ALIGN(32)
-{
-  . = ALIGN(32);
-  _sdtcm_bss = .;
+def _render_reserved_section(section_name, region_name, start_symbol, end_symbol, extra_wildcards):
+    """Render a `.section_name (NOLOAD)` block with the standard `*(.section_name[.*])`
+    wildcards plus any project-added `extra_wildcards` (e.g. per-symbol placement rules
+    carried forward from an already-synced output file, see _extract_extra_wildcards).
+    """
+    lines = [
+        f".{section_name} (NOLOAD) : ALIGN(32)",
+        "{",
+        "  . = ALIGN(32);",
+        f"  {start_symbol} = .;",
+        "",
+        f"  *(.{section_name})",
+        f"  *(.{section_name}.*)",
+        *(f"  {w}" for w in extra_wildcards),
+        "",
+        "  . = ALIGN(32);",
+        f"  {end_symbol} = .;",
+        f"}} >{region_name}",
+        "",
+    ]
+    return "\n".join(lines) + "\n"
 
-  *(.dtcm_bss)
-  *(.dtcm_bss.*)
 
-  . = ALIGN(32);
-  _edtcm_bss = .;
-} >DTCM_RAM
+def _extract_extra_wildcards(existing_text: str, section_name: str, standard_patterns: set[str]) -> list[str]:
+    """Find any `*(...)` input-section wildcards already present in an existing output
+    file's `.section_name (NOLOAD) { ... }` block, beyond the two standard ones this tool
+    always emits. These are hand-added, project-specific placement rules (e.g. pinning a
+    specific mangled symbol's `-fdata-sections` section into DTCM/AXI SRAM) that a full
+    regeneration must not silently drop.
+    """
+    match = re.search(rf"\.{section_name}\s*\(NOLOAD\)[^{{]*\{{(.*?)\}}\s*>\s*\w+", existing_text, re.DOTALL)
+    if match is None:
+        return []
+    extras = []
+    for line in match.group(1).splitlines():
+        stripped = line.strip()
+        if stripped.startswith("*(") and stripped not in standard_patterns:
+            extras.append(stripped)
+    return extras
 
-"""
-
-AXI_SRAM_BLOCK = """.axi_sram (NOLOAD) : ALIGN(32)
-{
-  . = ALIGN(32);
-  _saxi_sram = .;
-
-  *(.axi_sram)
-  *(.axi_sram.*)
-
-  . = ALIGN(32);
-  _eaxi_sram = .;
-} >AXI_SRAM
-
-"""
 
 _DATA_TDATA_RETARGET_RE = re.compile(
     r"^([ \t]*\.(?:data|tdata)\b.*?\{.*?\})\s*>\s*DTCM_RAM\s*AT>\s*FLASH",
@@ -54,7 +67,9 @@ def _rename_region(text: str, old_name: str, new_name: str) -> str:
     return text
 
 
-def patch_linker_script(text: str, memory_map: MemoryMap) -> tuple[str, list[str]]:
+def patch_linker_script(
+    text: str, memory_map: MemoryMap, existing_output_text: str | None = None
+) -> tuple[str, list[str]]:
     actions: list[str] = []
 
     dtcm_old = memory_map.dtcm.name
@@ -84,18 +99,31 @@ def patch_linker_script(text: str, memory_map: MemoryMap) -> tuple[str, list[str
         )
     actions.append(f"Retargeted {n} zero-initialized section(s) (.tbss/.bss) to AXI_SRAM")
 
+    dtcm_extras = []
+    axi_extras = []
+    if existing_output_text is not None:
+        dtcm_extras = _extract_extra_wildcards(existing_output_text, "dtcm_bss", {"*(.dtcm_bss)", "*(.dtcm_bss.*)"})
+        axi_extras = _extract_extra_wildcards(existing_output_text, "axi_sram", {"*(.axi_sram)", "*(.axi_sram.*)"})
+
     header_match = _PLAIN_BSS_HEADER_RE.search(patched)
     if header_match is None:
         raise LinkerScriptError("Could not find the .bss output section to anchor .dtcm_bss insertion")
     indent = header_match.group(1)
+    dtcm_text = _render_reserved_section("dtcm_bss", "DTCM_RAM", "_sdtcm_bss", "_edtcm_bss", dtcm_extras)
     dtcm_block = "\n".join(
-        (indent + line) if line else line for line in DTCM_BSS_BLOCK.rstrip("\n").split("\n")
+        (indent + line) if line else line for line in dtcm_text.rstrip("\n").split("\n")
     ) + "\n\n"
     patched = patched[: header_match.start()] + dtcm_block + patched[header_match.start() :]
     actions.append("Inserted .dtcm_bss NOLOAD section (DTCM_RAM) with _sdtcm_bss/_edtcm_bss")
+    if dtcm_extras:
+        actions.append(
+            f"Preserved {len(dtcm_extras)} custom .dtcm_bss placement rule(s) from the "
+            f"existing linker script: {', '.join(dtcm_extras)}"
+        )
 
+    axi_text = _render_reserved_section("axi_sram", "AXI_SRAM", "_saxi_sram", "_eaxi_sram", axi_extras)
     axi_block = "\n".join(
-        (indent + line) if line else line for line in AXI_SRAM_BLOCK.rstrip("\n").split("\n")
+        (indent + line) if line else line for line in axi_text.rstrip("\n").split("\n")
     ) + "\n\n"
     discard_match = _DISCARD_RE.search(patched)
     if discard_match is not None:
@@ -105,5 +133,10 @@ def patch_linker_script(text: str, memory_map: MemoryMap) -> tuple[str, list[str
         last_brace = patched.rstrip().rfind("}")
         patched = patched[:last_brace] + axi_block + patched[last_brace:]
     actions.append("Appended .axi_sram NOLOAD section (AXI_SRAM) with _saxi_sram/_eaxi_sram")
+    if axi_extras:
+        actions.append(
+            f"Preserved {len(axi_extras)} custom .axi_sram placement rule(s) from the "
+            f"existing linker script: {', '.join(axi_extras)}"
+        )
 
     return patched, actions

@@ -10,8 +10,10 @@ class SyncReport:
     memory_map: MemoryMap
     linker_actions: list[str]
     startup_actions: list[str]
+    cmake_actions: list[str]
     linker_out: Path
     startup_out: Path
+    cmake_out: Path
     dry_run: bool
     warnings: list[str] = field(default_factory=list)
 
@@ -34,6 +36,9 @@ class SyncReport:
             "Startup script changes:",
             *[f"  - {a}" for a in self.startup_actions],
             "",
+            "Hardware/CMakeLists.txt changes:",
+            *[f"  - {a}" for a in self.cmake_actions],
+            "",
         ]
 
         all_warnings = [*self.memory_map.warnings, *self.warnings]
@@ -46,9 +51,11 @@ class SyncReport:
             lines.append("(dry run - no files were written)")
             lines.append(f"  would write: {self.linker_out}")
             lines.append(f"  would write: {self.startup_out}")
+            lines.append(f"  would write: {self.cmake_out}")
         else:
             lines.append("Files written:")
             lines.append(f"  {self.linker_out}")
             lines.append(f"  {self.startup_out}")
+            lines.append(f"  {self.cmake_out}")
 
         return "\n".join(lines)
