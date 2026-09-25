@@ -135,12 +135,13 @@ While microprocessors (MPUs) running Linux have ample RAM to handle large defaul
 
 F´ allows you to override framework-wide constants by providing custom configuration files in your project's `config/` directory. These overrides allow you to scale down framework buffer sizes, queue capacities, max string lengths, and component hash tables to fit the exact RAM constraints of your MCU.
 
-### Copying the Configuration Overrides Template
+### 5a. Copying the Configuration Overrides Template
 
 To apply the bare-metal memory configuration for the STM32H7, copy the template files from the `fprime-stm32` library into your project's `config/` directory:
 
 ```bash
-cp -r lib/fprime-stm32/Templates/stm32h7/config Stm32h7Project
+# In stm32h7-project
+cp -r lib/fprime-stm32/fprime-stm32/Templates/stm32h7/config Stm32h7Project
 ```
 
 > [!NOTE] 
@@ -149,7 +150,7 @@ cp -r lib/fprime-stm32/Templates/stm32h7/config Stm32h7Project
 In the next step we will be creating a STM32CubeMX project for your STM32 MCU to configure the peripherals and generate the initialization code.
 
 
-## 5. Creating a STM32CubeMX Project
+## 6. Creating a STM32CubeMX Project
 
 STM32CubeMX will generate the necessary HAL (Hardware Abstraction Layer) libraries and initialization code for your STM32 MCU. F´ will need these HAL libraries and initialization code to properly interface with the hardware.
 
@@ -166,8 +167,6 @@ Steps to Create a STM32CubeMX Project:
 > But if you are new to STM32CubeMX, follow the next creation example carefully to set up your project correctly.
 
 Here is an example of how to create a STM32CubeMX project for the STM32H753XIH6 MCU running on a STM32H753I-EVAL2 development board:
-
-To select your STM32 MCU or development board, follow the steps below:
 
 ### 1. Open STM32CubeMX and select "ACCESS TO MCU SELECTOR".
 
@@ -189,7 +188,7 @@ For this project, we will be using the STM32H753XIH6 MCU:
 > [!NOTE]
 > This MCU has a Memory Protection Unit (MPU) and supports various high-speed peripherals, making it suitable for complex embedded applications, but it's not yet supported by `fprime-stm32`. Select no when prompted after clicking "Start Project" to enable the MPU.
 
-## 8. Peripheral, Clock, and Middleware, Configuration
+## 7. Peripheral, Clock, and Middleware, Configuration
 
 With the STM32CubeMX project open, we can now proceed to configure the peripherals, clock settings, and middleware required for our application.
 
@@ -287,6 +286,10 @@ Because TIM2 is used as a custom microsecond clock, it is necessary to configure
 
 * First go to System Core -> RCC (Reset and Clock Control) and configure the High Speed External (HSE) clock as Crystal/Ceramic Resonator.
 
+<p align="center">
+  <img src="img/rcc-config.png" alt="RCC Configuration" width="350">
+</p>
+
 * Then, go to the clock configuration window and ensure that the HSE clock is selected as the PLL source for the system clock and modify the preescalers as needed to achieve the desired system clock frequency. Because for this MCU the maximum system clock frequency is 480 MHz, the preescalers were configured as follows:
 
 <div style="display: flex; gap: 20px; justify-content: center;">
@@ -339,6 +342,13 @@ TIM2 is configured as a custom microsecond clock for precise timing operations r
 > [!TIP]
 > Look at your APB1 timer clock frequency to achieve the desired 1 MHz timer clock. You can calculate the prescaler value as `(APB1 timer clock / 1 MHz) - 1`.
 
+* Finally, enable the `TIM2` interrupt as the timer will generate update events that update the microsecond clock and rate groups accordingly.
+<p align="center">
+  <img src="img/tim2-irq.png" alt="TIM2 Interrupt Configuration" width="500">
+</p>
+
+
+
 ### 4. Generate the project directly into `Hardware/stm32h753_hal/` (Toolchain/IDE must be set to "CMake").
 
 Now that the hardware has been configured, you can proceed to set up your project directory inside the "Project Manager" window in STM32CubeMX.
@@ -356,6 +366,12 @@ If you are working with the STM32H753 series, your project directory should be n
 
 <p align="center">
   <img src="img/project-config.png" alt="Project Configuration" width="1024">
+</p>
+
+For CubeMX to generate all the HAL libraries inside the `Drivers/` directory, make sure that the "Generate peripheral initialization as a pair of `.c/.h` files" option is enabled in the CubeMX project settings. You can find this option under **Project Manager -> Code Generator**:
+
+<p align="center">
+  <img src="img/code-generator.png" alt="Code Generator Configuration" width="1024">
 </p>
 
 Now that you have configured the project settings and ensured the toolchain is set to "CMake", just select **"Project -> Generate Code"** to generate the project files into the specified directory.
@@ -416,13 +432,309 @@ target_link_options(YourDeployment PRIVATE
 
 Re-run `fprime-stm32 sync` any time you regenerate `Hardware/stm32h753_hal/` from CubeMX (e.g. after adding a peripheral). It re-derives everything from the current CubeMX output and preserves any project-specific linker placement rules you've hand-added since the last sync (e.g. pinning a specific symbol into DTCM).
 
-## 7. Creating a Custom STM32 Deployment
+## 8. Creating a Custom STM32 Deployment
 
 Before building the project, you need to create a deployment for your STM32 target. A deployment defines how the various components of your F´ project are connected and configured for a specific target platform. 
 
+Create a new deployment with the following:
 
+```sh
+# In stm32h7-project
+cd Stm32h7Project
+mkdir -p Deployments
+cd Deployments
+fprime-util new --deployment
+```
 
-## 7. Building the Project for STM32
+This will ask for some input, respond with the answers `Stm32h7Deployment` for the deployment name, `LedBlinker` for the deployment namespace, and `2` for the communication driver type, shown below:
+
+```
+  [1/3] Deployment name (MyDeployment): Stm32h7Deployment
+  [2/3] Deployment namespace (Deployments): Deployments
+  [3/3] Select communication driver type
+    1 - TcpClient
+    2 - TcpServer
+    3 - UART
+    Choose from [1/2/3] (1): 3
+[INFO] Found CMake file at 'stm32h7-project/Stm32h7Project/CMakeLists.txt'
+Add Deployments/Stm32h7Deployment to stm32h7-project/Stm32h7Project/CMakeLists.txt at end of file? (yes/no) [yes]: yes
+```
+This will create a new deployment directory under `Deployments/Stm32h7Deployment` and update your `CMakeLists.txt` to include this deployment.
+
+This deployment is not yet fully configured. As it uses the default Linux drivers, we will need to update it to use the STM32 drivers for UART, timer, and GPIO already provided by the `fprime-stm32` library.
+
+### 8a. Updating the Deployment instances and topology
+
+To update the deployment to use the STM32 drivers for UART, timer, and GPIO, you will need to modify the instances and topology files to replace the default Linux communication, timer and GPIO drivers with the STM32 drivers provided by the `fprime-stm32` library.
+
+First, we will tailor the default queue and stack sizes for the STM32 deployment, you need to modify the `instances.fpp` file.
+
+In you `Deployments/Stm32h7Deployment/` directory, open the `instances.fpp` file and look the following block of code:
+
+```fpp
+module Default {
+    constant QUEUE_SIZE = 10
+    constant STACK_SIZE = 64 * 1024
+  }
+```
+
+and replace it with the following:
+
+```fpp
+  module Default {
+    constant QUEUE_SIZE = 4
+    constant STACK_SIZE = 8 * 1024
+  }
+```
+
+This reduces the default queue and stack sizes to better match the constraints of the STM32 microcontroller from 10 queues and 64 KB stack to 4 queues and 8 KB stack.
+
+Then go to the bottom of the file in the passive component instances section to update the instances and look for these drivers:
+
+```fpp
+  # ----------------------------------------------------------------------
+  # Passive component instances
+  # ----------------------------------------------------------------------
+
+  instance chronoTime: Svc.ChronoTime base id 0x10010000
+
+  instance rateGroupDriver: Svc.RateGroupDriver base id 0x10011000
+
+  instance systemResources: Svc.SystemResources base id 0x10012000
+
+  instance timer: Svc.LinuxTimer base id 0x10013000
+
+  instance comDriver: Drv.LinuxUartDriver base id 0x10014000
+```
+
+and replace them with the STM32 drivers as follows:
+
+```fpp
+  # ----------------------------------------------------------------------
+  # Passive component instances
+  # ----------------------------------------------------------------------
+
+  instance osTime: Svc.OsTime base id 0x10010000
+
+  instance rateGroupDriver: Svc.RateGroupDriver base id 0x10011000
+
+  instance systemResources: Svc.SystemResources base id 0x10012000
+
+  instance timer: Stm32.STM32Timer base id 0x10013000
+
+  instance comDriver: Stm32.Stm32UartDriver base id 0x10014000
+
+  instance gpioDriver: Stm32.Stm32GpioDriver base id 0x10015000
+
+```
+
+Here `fprime-baremetal`'s `osTime` replaces the `chronoTime` instance, and the STM32-specific drivers replace the default Linux drivers, including the addition of a GPIO driver specific to the STM32 platform for the scope of general-purpose input/output operations.
+
+To indicate the instances used for this deployment's topology, we will need to update the corresponding `topology.fpp` file. In the Instances used in the topology section, make sure to reference the updated STM32-specific instances such as `osTime` and `gpioDriver` instead of the default Linux instances, going from the following instances:
+
+```fpp
+  # ----------------------------------------------------------------------
+  # Instances used in the topology
+  # ----------------------------------------------------------------------
+    instance chronoTime
+    instance rateGroup_1Hz
+    instance rateGroup_0_5Hz
+    instance rateGroup_0_25Hz
+    instance rateGroupDriver
+    instance systemResources
+    instance timer
+    instance comDriver
+    instance cmdSeq
+```
+
+to the following updated instances, which include the STM32-specific drivers:
+
+```fpp
+  # ----------------------------------------------------------------------
+  # Instances used in the topology
+  # ----------------------------------------------------------------------
+    instance osTime
+    instance rateGroup_1Hz
+    instance rateGroup_0_5Hz
+    instance rateGroup_0_25Hz
+    instance rateGroupDriver
+    instance systemResources
+    instance timer
+    instance comDriver
+    instance cmdSeq
+    instance gpioDriver
+```
+
+In the pattern graph specifiers simply replace the `chronoTime` instance with the `osTime` instance to reflect the STM32-specific timing component. Replace the following:
+
+```fpp
+        time connections instance chronoTime
+```
+
+with:
+
+```fpp
+        time connections instance osTime
+```
+
+Now let's add the connection for the UART driver in the RateGroups connections so that the 1Hz rate group can trigger the UART driver. In your `topology.fpp` file, under the `connections RateGroups` section with the 1Hz rate group, add the following line:
+
+```fpp
+      rateGroup_1Hz.RateGroupMemberOut[6] -> comDriver.run
+```
+
+This connection ensures that the UART driver is triggered by the 1Hz rate group, allowing it to run periodically as specified by the rate group.
+
+So far, we have updated the .fpp files only, and no changes have been made to the source code files yet. Now open your source code file `Stm32h7DeploymentTopology.cpp` to make the necessary updates.
+
+First, we will replace the current `MallocAllocator.hpp` include with the STM32-specific allocator header. Replace:
+
+```cpp
+#include <Fw/Types/MallocAllocator.hpp>
+```
+
+with:
+
+```cpp
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
+```
+
+And bellow this include also add the following includes for the STM32-specific drivers and other necessary headers for baremetal development:
+
+```cpp
+#include <fprime-baremetal/Os/Baremetal/MicroFs/MicroFs.hpp>
+#include <config/UartDriverConfig.hpp>
+#include <Fw/Logger/Logger.hpp>
+
+// STM32 HAL include for hardware abstraction layer functions
+#include "stm32h7xx_hal.h"
+```
+
+The following rate group and allocator instantiation code is specific to POSIX systems and should be updated for the STM32-specific allocator and timing configuration. Replace:
+
+```cpp
+// Instantiate a malloc allocator for cmdSeq buffer allocation
+Fw::MallocAllocator mallocator;
+
+// Rate group timing: base clock interval and divisors are coupled to rate group names
+const Fw::TimeInterval rateGroupInterval(1, 0);  // 1Hz base clock
+Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
+// Divisors: 1Hz, 0.5Hz, 0.25Hz
+```
+
+With the STM32-specific allocator, the code should look like this _(note that the `MallocAllocator` instantiation is removed and will be replaced with the STM32-specific allocator)_:
+
+```cpp
+Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{100, 0}, {200, 0}, {400, 0}}};
+// Divisors: 1Hz, 0.5Hz, 0.25Hz
+```
+
+And now inside the `enum Topology Constants` we will replace the `COMM_PRIORITY` constant with the new UART driver constants:
+
+```cpp
+enum TopologyConstants {
+    // USART1 configuration
+    BAUD_RATE = 115200,
+    USART_IRQ_PREEMPT_PRIORITY = 0,
+    USART_IRQ_SUB_PRIORITY = 0
+};
+```
+
+With this set we can start configuring the topology for our deployment, for this go to the `configureTopology()` function and replace it with the following code snippet:
+
+```cpp
+void configureTopology() {
+    // Bare-metal MicroFs (RAM-backed) filesystem initialization
+    static Os::Baremetal::MicroFs::MicroFsConfig microFsConfig;
+    Os::Baremetal::MicroFs::MicroFsSetCfgBins(microFsConfig, 2);
+    Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 0, 1024, 2);
+    Os::Baremetal::MicroFs::MicroFsAddBin(microFsConfig, 1, 4096, 1);
+    Os::Baremetal::MicroFs::MicroFsInit(microFsConfig, 0, Stm32::getBootstrapAllocator());
+
+    // Rate group driver needs a divisor list
+    rateGroupDriver.configure(rateGroupDivisorsSet);
+
+    // The timer rate is set to 10000 microseconds (10 ms)
+    timer.open(Stm32::TimerInstance::Tim2, 10000);
+
+    // Rate groups require context arrays.
+    rateGroup_1Hz.configure(rateGroup_1HzContext);
+    rateGroup_0_5Hz.configure(rateGroup_0_5HzContext);
+    rateGroup_0_25Hz.configure(rateGroup_0_25HzContext);
+
+    // Command sequencer needs to allocate memory to hold contents of command sequences
+    cmdSeq.allocateBuffer(0, Stm32::getBootstrapAllocator(), 5 * 1024);
+
+    // PrmDb file name must be supplied by the using topology
+    FileHandling::prmDb.configure("PrmDb.dat");
+
+    // Open the UART driver using the USART1 instance and the specified interrupt priorities and baud rate.
+    const Fw::Success comDriverOpened = comDriver.open(FW_COM_BUFFER_MAX_SIZE, Stm32::UsartInstance::Usart1,
+                                                        USART_IRQ_PREEMPT_PRIORITY, USART_IRQ_SUB_PRIORITY,
+                                                        BAUD_RATE);
+    // Check if the UART driver was successfully opened
+    if(comDriverOpened == Fw::Success::FAILURE) {
+        Fw::Logger::log("[ERROR] Failed to open UART\n");
+    }
+
+    // On-board LED1 (PF10), driven as a push-pull output
+    const Fw::Success gpioDriverOpened = gpioDriver.open(Stm32::GpioPort::F, GPIO_PIN_10, Fw::Direction::OUT);
+    if(gpioDriverOpened == Fw::Success::FAILURE) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO\n");
+    }
+}
+```
+
+In the `setupTopology()` function, there is an if statement that checks if the UART driver was successfully opened and logs an error message if it failed. This is for the Linux Driver, but in the STM32 bare-metal context that is checked in the `configureTopology()` function, so **delete** this check from `setupTopology()`:
+
+```cpp
+    if (state.uartDevice != nullptr) {
+        Os::TaskString name("ReceiveTask");
+        // Uplink is configured for receive so a socket task is started
+        if (comDriver.open(state.uartDevice, static_cast<Drv::LinuxUartDriver::UartBaudRate>(state.baudRate), 
+                           Drv::LinuxUartDriver::NO_FLOW, Drv::LinuxUartDriver::PARITY_NONE, 2048)) {
+            comDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
+        } else {
+            printf("Failed to open UART device %s at baud rate %" PRIu32 "\n", state.uartDevice, state.baudRate);
+        }
+    }
+```
+
+For the same reason, delete the conent of the `startRateGroups()` and `stopRateGroups()`. These functions should be empty as the rate groups are managed by our `TIM2` timer. Make sure to remove any code inside these functions, it should go from this:
+
+```cpp
+void startRateGroups() {
+    timer.startTimer(rateGroupInterval);
+}
+
+void stopRateGroups() {
+    timer.quit();
+}
+```
+
+To this:
+
+```cpp
+void startRateGroups() {}
+void stopRateGroups() {}
+```
+
+Finally, for the `teardownTopology()` function, you should also remove any thread management code, as the STM32 bare-metal context does not require explicit thread cleanup for the rate groups. Remove inside the `teardownTopology()` function:
+
+```cpp
+    // Other task clean-up.
+    comDriver.quitReadThread();
+    (void)comDriver.join();
+```
+
+and assign the resource deallocation to `Stm32::getBootstrapAllocator()`:
+
+```cpp
+    // Resource deallocation
+    cmdSeq.deallocateBuffer(Stm32::getBootstrapAllocator());
+```
+
+## 9. Building the Project for STM32
 
 Once the ARM GNU Toolchain is installed and verified and the necessary submodules and directories are added, you can generate and build your F´ project for STM32 microcontrollers using the following commands:
 ```sh
