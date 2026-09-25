@@ -141,11 +141,19 @@ To apply the bare-metal memory configuration for the STM32H7, copy the template 
 
 ```bash
 # In stm32h7-project
-cp -r lib/fprime-stm32/fprime-stm32/Templates/stm32h7/config Stm32h7Project
+cp -r lib/fprime-stm32/fprime-stm32/Templates/stm32h7/config ./
 ```
 
 > [!NOTE] 
 > This template pre-configures key F´ settings (such as `AcConstants.fpp`, `FpConstants.fpp`, and `TlmChanImplCfg.hpp`) to fit comfortably within the 1 MB RAM limit of the STM32H753xx series. If you are targeting an MCU with a smaller memory footprint (such as an STM32F4 or STM32F7 with 128–512 KB RAM), you will need to further tune queue depths, telemetry hash bucket sizes, and buffer capacities within the files in `config/`.
+
+Finaly, inside your project's `settings.ini` file, make sure to include the path to your `config/` directory so that F´ picks up your custom configuration overrides. Just bellow the `library_locations:` line add:
+
+```ini
+config_directory: ./config
+```
+
+This ensures that F´ will use your custom configuration settings from the `config/` directory. 
 
 In the next step we will be creating a STM32CubeMX project for your STM32 MCU to configure the peripherals and generate the initialization code.
 
@@ -446,7 +454,7 @@ cd Deployments
 fprime-util new --deployment
 ```
 
-This will ask for some input, respond with the answers `Stm32h7Deployment` for the deployment name, `LedBlinker` for the deployment namespace, and `2` for the communication driver type, shown below:
+This will ask for some input, respond with the answers `Stm32h7Deployment` for the deployment name, accept the default `Deployments` for the deployment namespace, and `3` for the communication driver type (UART), shown below:
 
 ```
   [1/3] Deployment name (MyDeployment): Stm32h7Deployment
@@ -733,6 +741,163 @@ and assign the resource deallocation to `Stm32::getBootstrapAllocator()`:
     // Resource deallocation
     cmdSeq.deallocateBuffer(Stm32::getBootstrapAllocator());
 ```
+
+### 8b. Wiring the STM32 Build System
+
+The `.fpp` and `Stm32h7DeploymentTopology.cpp` edits above are enough for the topology to make sense, but a deployment created by `fprime-util new --deployment` starts out with the default Linux/CMake wiring: no ASM support, no link to the `Hardware/` and `config/` directories, and no link to the `FprimeStm32` HAL library. Building right now would fail with an error like:
+
+```
+F Prime/CMake target 'FprimeStm32' not available to deployment 'Stm32h7Project_Deployments_Stm32h7Deployment'.
+```
+
+Fix this in four places:
+
+**1. Enable the ASM language.** The startup file `fprime-stm32 sync` wrote into `Hardware/startup/` is a `.s` assembly file; CMake won't compile it unless the ASM language is enabled. In your project's root `CMakeLists.txt`, add this line right after `project(...)`:
+
+```cmake
+cmake_minimum_required(VERSION 3.24.2)
+project(Stm32h7Project C CXX)
+enable_language(ASM)
+```
+
+In this same file, add the `./config` directory to the project's build graph by adding at the end of the file:
+
+```cmake
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config")
+```
+
+**2. Add `Hardware/` to the project's build graph.** The directory exists on disk and already has its own `CMakeLists.txt` (the `Hardware/` one from `fprime-stm32 sync`), but nothing has told CMake to actually descend into it. In `Stm32h7Project/CMakeLists.txt`, add:
+
+```cmake
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Hardware")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Deployments/Stm32h7Deployment/")
+```
+
+> [!IMPORTANT]
+> `Hardware/` must be added *before* the deployment. F´ resolves target dependencies in registration order, a deployment can't depend on a target (`FprimeStm32`) that hasn't been defined yet.
+
+**4. Link the deployment against the STM32 HAL, allocator, and config, and give it the linker script.** Open `Stm32h7Project/Deployments/Stm32h7Deployment/CMakeLists.txt` and replace the `register_fprime_deployment(...)` block with:
+
+```cmake
+restrict_platforms(stm32h7)
+
+###
+# Topology and Components
+###
+
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
+
+register_fprime_deployment(
+    SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
+        "${FPRIME_STM32_STARTUP_SOURCE}"
+        "${FPRIME_STM32_IT_SOURCE}"
+    DEPENDS
+        ${FPRIME_CURRENT_MODULE}_Top
+        FprimeStm32
+        FprimeStm32Config
+        FprimeStm32Allocator
+        Os_Baremetal_OverrideNewDelete
+)
+
+target_link_options(${FPRIME_CURRENT_MODULE} PRIVATE
+    "-T${FPRIME_STM32_LINKER_SCRIPT}"
+    "-Wl,--gc-sections"
+    "-Wl,--undefined=_Znwj"
+    "-Wl,--undefined=_Znaj"
+    "-Wl,--undefined=_Znwjl"
+    "-Wl,--undefined=_Znajl"
+    "-Wl,--undefined=_ZnwjRKSt9nothrow_t"
+    "-Wl,--undefined=_ZnajRKSt9nothrow_t"
+    "-Wl,--undefined=_ZdlPv"
+    "-Wl,--undefined=_ZdaPv"
+    "-Wl,--undefined=_ZdlPvl"
+    "-Wl,--undefined=_ZdaPvl"
+    "-Wl,--undefined=_ZdlPvj"
+    "-Wl,--undefined=_ZdaPvj"
+    "--specs=nosys.specs"
+)
+```
+
+A quick word on each new piece: `restrict_platforms(stm32h7)` keeps a native/host build from even trying to configure this ARM-only deployment. `${FPRIME_STM32_STARTUP_SOURCE}`/`${FPRIME_STM32_IT_SOURCE}` are the CMake cache variables `fprime-stm32 sync` exported in step 7.5 — compiling them directly into the deployment (rather than only through the archived `FprimeStm32` static library) guarantees their strong ISR definitions override the startup file's weak `Default_Handler` aliases. `FprimeStm32Config`/`FprimeStm32Allocator` are the `Stm32Config.hpp` peripheral-selection header and the fixed-pool bootstrap allocator, both used from `Stm32h7DeploymentTopology.cpp`. `${FPRIME_STM32_LINKER_SCRIPT}` places code and data into the regions the linker script defines. The long list of `-Wl,--undefined=...` symbols forces the linker to always pull in `Os_Baremetal_OverrideNewDelete`'s `operator new`/`delete` overrides, even though nothing in the topology graph references them directly — without this, a bare-metal build has no heap and `new`/`delete` silently resolve to nothing. `--specs=nosys.specs` supplies the newlib stub syscalls (`_write`, `_sbrk`, etc.) this bare-metal target needs at link time.
+
+Finally, open `Stm32h7Project/Deployments/Stm32h7Deployment/Top/CMakeLists.txt` and add `FprimeStm32Allocator` to its `DEPENDS`, since `Stm32h7DeploymentTopology.cpp` calls `Stm32::getBootstrapAllocator()`/`Stm32::lockBootstrapAllocator()`:
+
+```cmake
+register_fprime_module(
+    AUTOCODER_INPUTS
+        "${CMAKE_CURRENT_LIST_DIR}/instances.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/system.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/topology.fpp"
+    SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/Stm32h7DeploymentTopology.cpp"
+    DEPENDS
+        Fw_Logger
+        FprimeStm32Allocator
+)
+```
+
+> [!WARNING]
+> `fprime-stm32 sync` (step 7.5) generates `Hardware/CMakeLists.txt` by computing HAL source paths relative to `Hardware/stm32h753_hal/`. If you see a build error like `Cannot find source file: stm32h753_hal/../../../../Core/Src/system_stm32h7xx.c` (an implausible number of `../` segments), the sync tool mis-computed that relative path for your project's directory depth. Open `Hardware/CMakeLists.txt` and strip the extra `../` segments so each path reads simply `stm32h753_hal/Core/Src/...` (or `stm32h753_hal/Drivers/...`) — every occurrence follows the same pattern, so a single search-and-replace fixes the whole file.
+
+### 8c. Rewriting Main.cpp for Bare-Metal Execution
+
+`fprime-util new --deployment` generates a `Main.cpp` written for a hosted OS: it parses `-b`/`-d` command-line arguments with `getopt`, installs a `SIGINT`/`SIGTERM` handler to stop cleanly on Ctrl-C, and calls `Deployments::startRateGroups()` expecting that function to block until a signal arrives. None of that applies to a microcontroller with no command line, no signals, and no OS to return control to — the bare-metal `startRateGroups()`/`stopRateGroups()` you already emptied out in step 8a return immediately, so this `Main.cpp` would just exit right after `setupTopology()` and never run anything.
+
+Replace the entire contents of `Stm32h7Project/Deployments/Stm32h7Deployment/Main.cpp` with:
+
+```cpp
+// ======================================================================
+// \title  Main.cpp
+// \brief Bare-metal cyclic executive entry point for the STM32 deployment.
+// ======================================================================
+// Used to access topology functions and component instances
+#include <Stm32h7Project/Deployments/Stm32h7Deployment/Top/Stm32h7DeploymentTopology.hpp>
+#include <Stm32h7Project/Deployments/Stm32h7Deployment/Top/Stm32h7DeploymentTopologyAc.hpp>
+
+#include <fprime-stm32/Allocator/BootstrapAllocator.hpp>
+#include <Os/Os.hpp>
+#include <fprime-baremetal/Os/TaskRunner/TaskRunner.hpp>
+#include <fprime-stm32/Drv/STM32Timer/STM32Timer.hpp>
+#include <fprime-stm32/Drv/STM32UartDriver/Stm32UartDriver.hpp>
+#include <main.h>
+#include <stm32h7_clock.h>
+#include <tim2_clock.h>
+#include "stm32h7xx_hal.h"
+
+int main() {
+    SCB_EnableICache();
+    SCB_EnableDCache();
+
+    HAL_Init();
+
+    // Initialize the system clocks, including the HSE->PLL1 clock configuration.
+    FprimeStm32_ClockInit();
+    Stm32_Tim2ClockInit();
+
+    Os::init();
+    Os::Baremetal::TaskRunner& taskRunner = Os::Baremetal::TaskRunner::getSingleton();
+
+    Deployments::TopologyState inputs = {};
+    Deployments::setupTopology(inputs);
+    Stm32::lockBootstrapAllocator();
+
+    while (true) {
+        // Run a cooperative state machine step for each active registered component.
+        taskRunner.runAll();
+
+        // Poll the TIM2 CH2 hardware tick source and the UART driver.
+        Deployments::timer.poll();
+        Deployments::comDriver.poll();
+    }
+}
+```
+
+A few things worth calling out about this replacement:
+- `Stm32h7DeploymentTopologyAc.hpp` (the *autocoded* topology header, as opposed to the hand-written `Stm32h7DeploymentTopology.hpp`) is a new include — it's what declares the `Deployments::timer` and `Deployments::comDriver` instances this `main()` calls directly.
+- Cache and clock initialization happen before anything else, in this order: the Cortex-M7's I/D caches are undefined at reset and must be enabled before any DMA-capable driver touches memory; `HAL_Init()` must run before `FprimeStm32_ClockInit()` configures the PLL; `Stm32_Tim2ClockInit()` (which starts TIM2's free-running base counter) must run after the clock tree is correct, since its prescaler assumes the final clock frequency.
+- There is no `startRateGroups()`/blocking call at all — the `while (true)` loop itself *is* the cyclic executive. `taskRunner.runAll()` gives every registered active/queued component one cooperative dispatch pass; `timer.poll()` and `comDriver.poll()` service the hardware tick source and the UART DMA state machine, which (per step 8a) don't have their own OS thread to run on.
 
 ## 9. Building the Project for STM32
 
