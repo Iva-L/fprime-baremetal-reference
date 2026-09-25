@@ -2,11 +2,13 @@
 
 Wires an STM32CubeMX-generated STM32H7 project into this repo's F' bare-metal
 `Hardware/` layout: patches the CubeMX linker script and startup assembly
-file for F's zero-dynamic-memory architecture, and regenerates
+file for F's zero-dynamic-memory architecture, regenerates
 `Hardware/CMakeLists.txt` so the `FprimeStm32` build target picks up exactly
-the HAL sources/includes/defines your CubeMX configuration needs. One
-command, `fprime-stm32 sync`, replaces what used to be a multi-file hand
-port.
+the HAL sources/includes/defines your CubeMX configuration needs, and wires
+`Hardware/`/`config/` and (once you have one) your deployment into the
+project's CMake build graph. One command, `fprime-stm32 sync`, replaces what
+used to be a multi-file hand port and multiple hand-edited `CMakeLists.txt`
+files.
 
 ## Install
 
@@ -20,7 +22,7 @@ Run from the root of an F' deployment project (a directory containing
 `Hardware/`, or containing exactly one `<Deployment>/Hardware/`):
 
 ```bash
-fprime-stm32 sync Hardware/<name>_hal [--dry-run] [--deployment <name>]
+fprime-stm32 sync Hardware/<name>_hal [--dry-run] [--deployment <name>] [--wire-deployment <name>]
 ```
 
 `<name>_hal` must be a **direct subdirectory of `Hardware/`** — that's where
@@ -28,6 +30,12 @@ you generate your CubeMX project in the first place (e.g.
 `Hardware/stm32h743_hal/` for an STM32H743, alongside the existing
 `Hardware/stm32h753_hal/`). `--dry-run` prints a unified diff of every file
 it would touch without writing anything.
+
+`--wire-deployment <name>` picks which `Deployments/<name>/` to connect to
+the stm32h7 platform (see "Deployment build-graph wiring" below) — omit it
+and `sync` auto-detects the deployment if there's exactly one. `--deployment
+<name>` is unrelated: it disambiguates the *namespace* root (the directory
+containing `Hardware/`) when the current directory has more than one.
 
 ## The CubeMX project requirement
 
@@ -41,11 +49,11 @@ rather than guess.
 
 ## How it works
 
-`sync` produces three artifacts from two inputs — the CubeMX project you
-just generated, and (on re-runs) whatever's already in `Hardware/` from a
-previous sync. Nothing here is chip-specific string-matching; every decision
-is either read out of CubeMX's own generated files or keyed off addresses
-that are fixed in STM32H7 silicon.
+`sync` produces up to seven artifacts from two inputs — the CubeMX project
+you just generated, and (on re-runs) whatever's already in `Hardware/` and
+the rest of the project from a previous sync. Nothing here is chip-specific
+string-matching; every decision is either read out of CubeMX's own
+generated files or keyed off addresses that are fixed in STM32H7 silicon.
 
 ### 1. Discovery (`discovery.py`)
 
@@ -154,25 +162,9 @@ FPRIME_STM32_IT_SOURCE        # -> <hal_dir>/Core/Src/stm32h7xx_it.c
 
 Your deployment's `CMakeLists.txt` references these instead of hardcoding a
 chip-specific filename, so it never needs editing again after the first
-setup — even if you later re-sync against a different chip:
-
-```cmake
-register_fprime_deployment(
-    YourDeployment
-    SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
-        "${FPRIME_STM32_STARTUP_SOURCE}"
-        "${FPRIME_STM32_IT_SOURCE}"   # linked directly, not via the archive -
-                                       # see the NOTE this tool writes into
-                                       # Hardware/CMakeLists.txt for why
-    ...
-)
-
-target_link_options(YourDeployment PRIVATE
-    "-T${FPRIME_STM32_LINKER_SCRIPT}"
-    ...
-)
-```
+setup — even if you later re-sync against a different chip. You don't need
+to add these references by hand: `sync --wire-deployment <name>` (section 6
+below) writes them into your deployment's `CMakeLists.txt` for you.
 
 (`FPRIME_STM32_IT_SOURCE` is linked straight into the deployment executable
 rather than through the `FprimeStm32` static archive: GNU ld only pulls an
@@ -181,6 +173,45 @@ rather than through the `FprimeStm32` static archive: GNU ld only pulls an
 `Default_Handler` aliases satisfy every vector before the linker ever needs
 to search the archive — so the real ISR bodies would be silently discarded
 in favor of the weak infinite-loop aliases if they stayed in the archive.)
+
+### 6. Project & deployment build-graph wiring (`project_wiring.py`)
+
+Everything above makes `Hardware/CMakeLists.txt` correct in isolation, but a
+fresh F' project/deployment doesn't yet *reach* it. `sync` patches up to
+four more files, each idempotently (same insert-if-missing pattern as the
+linker/startup patchers — re-running `sync` on an already-wired file makes
+no further changes, reported as "already wired, no changes needed"):
+
+- **The project's root `CMakeLists.txt`** (one directory above the F'
+  namespace root): enables the ASM language (needed to compile
+  `Hardware/startup/*.s`) and adds `config/` to the build graph.
+- **The namespace `CMakeLists.txt`** (the one with `add_fprime_subdirectory(Components)`):
+  adds `Hardware/` to the build graph.
+- **The target deployment's `CMakeLists.txt`**: adds `restrict_platforms(stm32h7)`;
+  extends `SOURCES` with `${FPRIME_STM32_STARTUP_SOURCE}`/`${FPRIME_STM32_IT_SOURCE}`;
+  extends `DEPENDS` with `FprimeStm32`/`FprimeStm32Config`/`FprimeStm32Allocator`/
+  `Os_Baremetal_OverrideNewDelete`; appends a `target_link_options(...)` block
+  wiring in `${FPRIME_STM32_LINKER_SCRIPT}` and the operator new/delete
+  `-Wl,--undefined=...` list `Os_Baremetal_OverrideNewDelete` needs to actually
+  get linked in.
+- **That deployment's `Top/CMakeLists.txt`**: adds `FprimeStm32Allocator` to
+  `DEPENDS` (needed by `Stm32::getBootstrapAllocator()`/`lockBootstrapAllocator()`
+  calls in the topology).
+
+Which deployment gets the last two: `--wire-deployment <name>` picks one
+explicitly; with no flag, `sync` auto-detects it if exactly one directory
+exists under `Deployments/`, skips deployment-wiring with a note in the
+report if none exist yet, and errors asking for `--wire-deployment` if
+there's more than one. The root/namespace wiring always runs, since it has
+no such ambiguity.
+
+Every patch here targets the exact shape `fprime-util new --deployment`'s
+cookiecutter template generates by default (`add_fprime_subdirectory(Top/)` +
+a bare `register_fprime_deployment(SOURCES ... DEPENDS ...)` for the
+deployment, `register_fprime_module(AUTOCODER_INPUTS ... DEPENDS Fw_Logger)`
+for `Top/CMakeLists.txt`) — like the linker/startup patchers, this is
+targeted insertion into the existing file, never a full-file regeneration,
+so any components/sources you've already added to these files survive.
 
 ## Which STM32H7 chips this works on
 
