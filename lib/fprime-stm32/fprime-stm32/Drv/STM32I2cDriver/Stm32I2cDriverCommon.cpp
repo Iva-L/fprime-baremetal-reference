@@ -12,6 +12,8 @@
 #include <fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 #include <Fw/Types/Assert.hpp>
 
+#if I2C_ENABLED
+
 namespace Stm32 {
 
 // ----------------------------------------------------------------------
@@ -78,3 +80,5 @@ Drv::I2cStatus Stm32I2cDriver ::writeRead_handler(const FwIndexType portNum,
 }
 
 }  // namespace Stm32
+
+#endif // I2C_ENABLED
