@@ -376,7 +376,7 @@ If you are working with the STM32H753 series, your project directory should be n
   <img src="img/project-config.png" alt="Project Configuration" width="1024">
 </p>
 
-For CubeMX to generate all the HAL libraries inside the `Drivers/` directory, make sure that the "Generate peripheral initialization as a pair of `.c/.h` files" option is enabled in the CubeMX project settings. You can find this option under **Project Manager -> Code Generator**:
+For CubeMX to generate all the HAL libraries inside the `Drivers/` directory, make sure that the "Generate peripheral initialization as a pair of `.c/.h` files" as well as "Copy all used libraries into the project folder" options are enabled in the CubeMX project settings. You can find these options under **Project Manager -> Code Generator**:
 
 <p align="center">
   <img src="img/code-generator.png" alt="Code Generator Configuration" width="1024">
@@ -418,27 +418,11 @@ Then, you can synchronize your CubeMX-generated project with the F' build system
 fprime-stm32 sync Stm32h7Project/Hardware/stm32h753_hal/
 ```
 
-This patches the CubeMX-generated linker script and startup file for F´'s bare-metal zero-dynamic-memory architecture (DMA-safe buffers in AXI SRAM, CPU-only state in DTCM), writes them to `Hardware/linker/` and `Hardware/startup/`, and regenerates `Hardware/CMakeLists.txt` from CubeMX's own `cmake/stm32cubemx/CMakeLists.txt` so the `FprimeStm32` library target picks up exactly the HAL sources/includes/defines your peripheral configuration needs - for any STM32H7 chip, not just the STM32H753XIH6 used in this example. Add `--dry-run` first to preview the changes.
+This patches the CubeMX-generated linker script and startup file for F´'s bare-metal zero-dynamic-memory architecture (DMA-safe buffers in AXI SRAM, CPU-only state in DTCM), writes them to `Hardware/linker/` and `Hardware/startup/`, and regenerates `Hardware/CMakeLists.txt` from CubeMX's own `cmake/stm32cubemx/CMakeLists.txt` so the `FprimeStm32` library target picks up exactly the HAL sources/includes/defines your peripheral configuration needs - for any STM32H7 chip, not just the STM32H753XIH6 used in this example. It also wires `Hardware/` and `config/` into the project's CMake build graph (the root and namespace `CMakeLists.txt` files), and exports three CMake cache variables from `Hardware/CMakeLists.txt` - `FPRIME_STM32_LINKER_SCRIPT`, `FPRIME_STM32_STARTUP_SOURCE`, `FPRIME_STM32_IT_SOURCE` - that a deployment's own `CMakeLists.txt` needs to reference. Add `--dry-run` first to preview the changes.
 
-`sync` also exports three CMake cache variables from `Hardware/CMakeLists.txt` - `FPRIME_STM32_LINKER_SCRIPT`, `FPRIME_STM32_STARTUP_SOURCE`, `FPRIME_STM32_IT_SOURCE` - so your deployment's `CMakeLists.txt` never needs to hardcode a chip-specific filename. Reference them once when you set up your deployment:
+You don't have a deployment yet at this point in the tutorial (that's step 8), so there's nothing for `sync` to wire there yet - it'll tell you so. Once you've created one, re-run this same `sync` command with `--wire-deployment <name>` (step 8b) to finish connecting it to the STM32 build - no hand-written CMake required.
 
-```cmake
-register_fprime_deployment(
-    YourDeployment
-    SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
-        "${FPRIME_STM32_STARTUP_SOURCE}"
-        "${FPRIME_STM32_IT_SOURCE}"
-    ...
-)
-
-target_link_options(YourDeployment PRIVATE
-    "-T${FPRIME_STM32_LINKER_SCRIPT}"
-    ...
-)
-```
-
-Re-run `fprime-stm32 sync` any time you regenerate `Hardware/stm32h753_hal/` from CubeMX (e.g. after adding a peripheral). It re-derives everything from the current CubeMX output and preserves any project-specific linker placement rules you've hand-added since the last sync (e.g. pinning a specific symbol into DTCM).
+Re-run `fprime-stm32 sync` any time you regenerate `Hardware/stm32h753_hal/` from CubeMX (e.g. after adding a peripheral). It re-derives everything from the current CubeMX output and preserves any project-specific linker placement rules you've hand-added since the last sync (e.g. pinning a specific symbol into DTCM), and every file it touches is patched idempotently - re-running it again once everything is already wired makes no further changes.
 
 ## 8. Creating a Custom STM32 Deployment
 
@@ -750,96 +734,21 @@ The `.fpp` and `Stm32h7DeploymentTopology.cpp` edits above are enough for the to
 F Prime/CMake target 'FprimeStm32' not available to deployment 'Stm32h7Project_Deployments_Stm32h7Deployment'.
 ```
 
-Fix this in four places:
+`fprime-stm32 sync` fixes all of this for you — pass `--wire-deployment` with your deployment's name (or omit it if you only have one deployment so far; it auto-detects):
 
-**1. Enable the ASM language.** The startup file `fprime-stm32 sync` wrote into `Hardware/startup/` is a `.s` assembly file; CMake won't compile it unless the ASM language is enabled. In your project's root `CMakeLists.txt`, add this line right after `project(...)`:
-
-```cmake
-cmake_minimum_required(VERSION 3.24.2)
-project(Stm32h7Project C CXX)
-enable_language(ASM)
+```sh
+# In stm32h7-project
+fprime-stm32 sync Stm32h7Project/Hardware/stm32h753_hal/ --wire-deployment Stm32h7Deployment
 ```
 
-In this same file, add the `./config` directory to the project's build graph by adding at the end of the file:
+Re-run this same command (it's the same one from step 7.5) any time after creating or renaming a deployment. It patches four files, each idempotently — re-running `sync` again makes no further changes once a file is already wired:
 
-```cmake
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/config")
-```
+1. **Project's root `CMakeLists.txt`** (one level above `Stm32h7Project/`): enables the ASM language (the startup file `sync` writes into `Hardware/startup/` is a `.s` assembly file; CMake won't compile it otherwise), and adds `config/` to the project's build graph.
+2. **Namespace `CMakeLists.txt`** (`Stm32h7Project/CMakeLists.txt`): adds `Hardware/` to the project's build graph, so the `FprimeStm32` target it defines actually gets built.
+3. **The deployment's own `CMakeLists.txt`**: adds `restrict_platforms(stm32h7)` (keeps a native/host build from even trying to configure this ARM-only deployment); adds `${FPRIME_STM32_STARTUP_SOURCE}`/`${FPRIME_STM32_IT_SOURCE}` to `SOURCES` — compiling them directly into the deployment (rather than only through the archived `FprimeStm32` static library) guarantees their strong ISR definitions override the startup file's weak `Default_Handler` aliases; adds `FprimeStm32`/`FprimeStm32Config`/`FprimeStm32Allocator`/`Os_Baremetal_OverrideNewDelete` to `DEPENDS` (the HAL library, the peripheral-selection header, the fixed-pool bootstrap allocator, and the `operator new`/`delete` overrides `Stm32h7DeploymentTopology.cpp` needs); and appends a `target_link_options(...)` block wiring in `${FPRIME_STM32_LINKER_SCRIPT}`, `-Wl,--gc-sections`, a list of `-Wl,--undefined=...` symbols that force the linker to always pull in the `operator new`/`delete` overrides even though nothing in the topology graph references them directly (without this, a bare-metal build has no heap and `new`/`delete` silently resolve to nothing), and `--specs=nosys.specs` (the newlib stub syscalls this bare-metal target needs at link time).
+4. **The deployment's `Top/CMakeLists.txt`**: adds `FprimeStm32Allocator` to `DEPENDS`, since `Stm32h7DeploymentTopology.cpp` calls `Stm32::getBootstrapAllocator()`/`Stm32::lockBootstrapAllocator()`.
 
-**2. Add `Hardware/` to the project's build graph.** The directory exists on disk and already has its own `CMakeLists.txt` (the `Hardware/` one from `fprime-stm32 sync`), but nothing has told CMake to actually descend into it. In `Stm32h7Project/CMakeLists.txt`, add:
-
-```cmake
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Hardware")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Deployments/Stm32h7Deployment/")
-```
-
-> [!IMPORTANT]
-> `Hardware/` must be added *before* the deployment. F´ resolves target dependencies in registration order, a deployment can't depend on a target (`FprimeStm32`) that hasn't been defined yet.
-
-**4. Link the deployment against the STM32 HAL, allocator, and config, and give it the linker script.** Open `Stm32h7Project/Deployments/Stm32h7Deployment/CMakeLists.txt` and replace the `register_fprime_deployment(...)` block with:
-
-```cmake
-restrict_platforms(stm32h7)
-
-###
-# Topology and Components
-###
-
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
-
-register_fprime_deployment(
-    SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
-        "${FPRIME_STM32_STARTUP_SOURCE}"
-        "${FPRIME_STM32_IT_SOURCE}"
-    DEPENDS
-        ${FPRIME_CURRENT_MODULE}_Top
-        FprimeStm32
-        FprimeStm32Config
-        FprimeStm32Allocator
-        Os_Baremetal_OverrideNewDelete
-)
-
-target_link_options(${FPRIME_CURRENT_MODULE} PRIVATE
-    "-T${FPRIME_STM32_LINKER_SCRIPT}"
-    "-Wl,--gc-sections"
-    "-Wl,--undefined=_Znwj"
-    "-Wl,--undefined=_Znaj"
-    "-Wl,--undefined=_Znwjl"
-    "-Wl,--undefined=_Znajl"
-    "-Wl,--undefined=_ZnwjRKSt9nothrow_t"
-    "-Wl,--undefined=_ZnajRKSt9nothrow_t"
-    "-Wl,--undefined=_ZdlPv"
-    "-Wl,--undefined=_ZdaPv"
-    "-Wl,--undefined=_ZdlPvl"
-    "-Wl,--undefined=_ZdaPvl"
-    "-Wl,--undefined=_ZdlPvj"
-    "-Wl,--undefined=_ZdaPvj"
-    "--specs=nosys.specs"
-)
-```
-
-A quick word on each new piece: `restrict_platforms(stm32h7)` keeps a native/host build from even trying to configure this ARM-only deployment. `${FPRIME_STM32_STARTUP_SOURCE}`/`${FPRIME_STM32_IT_SOURCE}` are the CMake cache variables `fprime-stm32 sync` exported in step 7.5 — compiling them directly into the deployment (rather than only through the archived `FprimeStm32` static library) guarantees their strong ISR definitions override the startup file's weak `Default_Handler` aliases. `FprimeStm32Config`/`FprimeStm32Allocator` are the `Stm32Config.hpp` peripheral-selection header and the fixed-pool bootstrap allocator, both used from `Stm32h7DeploymentTopology.cpp`. `${FPRIME_STM32_LINKER_SCRIPT}` places code and data into the regions the linker script defines. The long list of `-Wl,--undefined=...` symbols forces the linker to always pull in `Os_Baremetal_OverrideNewDelete`'s `operator new`/`delete` overrides, even though nothing in the topology graph references them directly — without this, a bare-metal build has no heap and `new`/`delete` silently resolve to nothing. `--specs=nosys.specs` supplies the newlib stub syscalls (`_write`, `_sbrk`, etc.) this bare-metal target needs at link time.
-
-Finally, open `Stm32h7Project/Deployments/Stm32h7Deployment/Top/CMakeLists.txt` and add `FprimeStm32Allocator` to its `DEPENDS`, since `Stm32h7DeploymentTopology.cpp` calls `Stm32::getBootstrapAllocator()`/`Stm32::lockBootstrapAllocator()`:
-
-```cmake
-register_fprime_module(
-    AUTOCODER_INPUTS
-        "${CMAKE_CURRENT_LIST_DIR}/instances.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/system.fpp"
-        "${CMAKE_CURRENT_LIST_DIR}/topology.fpp"
-    SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/Stm32h7DeploymentTopology.cpp"
-    DEPENDS
-        Fw_Logger
-        FprimeStm32Allocator
-)
-```
-
-> [!WARNING]
-> `fprime-stm32 sync` (step 7.5) generates `Hardware/CMakeLists.txt` by computing HAL source paths relative to `Hardware/stm32h753_hal/`. If you see a build error like `Cannot find source file: stm32h753_hal/../../../../Core/Src/system_stm32h7xx.c` (an implausible number of `../` segments), the sync tool mis-computed that relative path for your project's directory depth. Open `Hardware/CMakeLists.txt` and strip the extra `../` segments so each path reads simply `stm32h753_hal/Core/Src/...` (or `stm32h753_hal/Drivers/...`) — every occurrence follows the same pattern, so a single search-and-replace fixes the whole file.
+Add `--dry-run` first if you want to preview these four diffs before writing them.
 
 ### 8c. Rewriting Main.cpp for Bare-Metal Execution
 
