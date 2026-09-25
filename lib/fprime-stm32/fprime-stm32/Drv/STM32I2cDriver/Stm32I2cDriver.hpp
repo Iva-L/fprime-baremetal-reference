@@ -15,6 +15,8 @@
 #include <Fw/Types/Assert.hpp>
 #include <config/Stm32Config.hpp>
 
+#if I2C_ENABLED
+
 namespace Stm32 {
 
 //! I2C peripheral identifier, covering every instance present on an STM32H753.
@@ -97,4 +99,5 @@ class Stm32I2cDriver final : public Stm32I2cDriverComponentBase {
 
 }  // namespace Stm32
 
-#endif
+#endif // I2C_ENABLED
+#endif // FPRIME_STM32_DRV_STM32I2CDRIVER_STM32I2CDRIVER_HPP
