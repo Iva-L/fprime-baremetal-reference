@@ -4,12 +4,25 @@ import sys
 from pathlib import Path
 
 from fprime_stm32.cubemx_cmake import parse_cubemx_cmake
-from fprime_stm32.discovery import discover_cubemx_sources, find_fprime_project_root
+from fprime_stm32.discovery import (
+    discover_cubemx_sources,
+    find_deployment_to_wire,
+    find_fprime_project_root,
+    find_namespace_cmakelists,
+    find_root_cmakelists,
+)
 from fprime_stm32.errors import CliError, ProjectDiscoveryError
 from fprime_stm32.hardware_cmake import discover_extra_config_sources, render_hardware_cmakelists
 from fprime_stm32.linker import patch_linker_script
 from fprime_stm32.memory_model import parse_memory_block
-from fprime_stm32.report import SyncReport
+from fprime_stm32.project_wiring import (
+    ensure_deployment_registered,
+    patch_deployment_cmakelists,
+    patch_namespace_cmakelists,
+    patch_root_cmakelists,
+    patch_top_cmakelists,
+)
+from fprime_stm32.report import FileChange, SyncReport
 from fprime_stm32.startup import patch_startup_script
 
 
@@ -27,7 +40,13 @@ def _build_parser() -> argparse.ArgumentParser:
     sync.add_argument(
         "--deployment",
         default=None,
-        help="Deployment directory name to target, when the F' project has more than one",
+        help="F' namespace directory name to target, when there's more than one Hardware/ directory",
+    )
+    sync.add_argument(
+        "--wire-deployment",
+        default=None,
+        help="Deployment directory name (under Deployments/) to wire for the stm32h7 platform. "
+        "Auto-detected if there's exactly one deployment.",
     )
     return parser
 
@@ -44,7 +63,9 @@ def _resolve_hal_dir_name(cwd: Path, cubemx_project: Path, hardware_dir: Path) -
     return cubemx_abs.name
 
 
-def _run_sync(cwd: Path, cubemx_project: Path, dry_run: bool, deployment: str | None) -> int:
+def _run_sync(
+    cwd: Path, cubemx_project: Path, dry_run: bool, deployment: str | None, wire_deployment: str | None
+) -> int:
     project = find_fprime_project_root(cwd, deployment=deployment)
     hal_dir_name = _resolve_hal_dir_name(cwd, cubemx_project, project.hardware_dir)
     sources = discover_cubemx_sources(cubemx_project)
@@ -84,6 +105,43 @@ def _run_sync(cwd: Path, cubemx_project: Path, dry_run: bool, deployment: str | 
         "FPRIME_STM32_IT_SOURCE cache variables for the deployment CMakeLists.txt to consume",
     ]
 
+    # Project-wide build-graph wiring: guarantees Hardware/ and config/ are reachable from the
+    # build, and (if a deployment exists) that it's linked against the stm32h7 platform/HAL/allocator.
+    project_wiring = []
+
+    root_cmake_path = find_root_cmakelists(project.namespace_root)
+    namespace_cmake_path = find_namespace_cmakelists(project.namespace_root)
+    patched_root_cmake, root_actions = patch_root_cmakelists(root_cmake_path.read_text())
+    patched_namespace_cmake, namespace_actions = patch_namespace_cmakelists(namespace_cmake_path.read_text())
+
+    deployment_dir = find_deployment_to_wire(project.namespace_root, wire_deployment)
+    deployment_note = None
+    if deployment_dir is None:
+        deployment_note = (
+            "No deployment wired: no Deployments/ found yet. Once you've created one, re-run "
+            "sync (it auto-detects a single deployment) or pass --wire-deployment <name>."
+        )
+    else:
+        patched_root_cmake, patched_namespace_cmake, extra_root_actions, extra_namespace_actions = (
+            ensure_deployment_registered(
+                patched_root_cmake, patched_namespace_cmake, project.namespace_root.name, deployment_dir.name
+            )
+        )
+        root_actions += extra_root_actions
+        namespace_actions += extra_namespace_actions
+
+        deployment_cmake_path = deployment_dir / "CMakeLists.txt"
+        top_cmake_path = deployment_dir / "Top" / "CMakeLists.txt"
+        patched_deployment_cmake, deployment_actions = patch_deployment_cmakelists(deployment_cmake_path.read_text())
+        patched_top_cmake, top_actions = patch_top_cmakelists(top_cmake_path.read_text())
+        project_wiring.append(
+            FileChange(f"Deployment CMakeLists.txt ({deployment_dir.name})", deployment_cmake_path, deployment_actions)
+        )
+        project_wiring.append(FileChange(f"Top/CMakeLists.txt ({deployment_dir.name})", top_cmake_path, top_actions))
+
+    project_wiring.insert(0, FileChange("Namespace CMakeLists.txt", namespace_cmake_path, namespace_actions))
+    project_wiring.insert(0, FileChange("Root CMakeLists.txt", root_cmake_path, root_actions))
+
     report = SyncReport(
         chip_tag=sources.chip_tag,
         memory_map=memory_map,
@@ -94,31 +152,38 @@ def _run_sync(cwd: Path, cubemx_project: Path, dry_run: bool, deployment: str | 
         startup_out=startup_out,
         cmake_out=cmake_out,
         dry_run=dry_run,
+        project_wiring=project_wiring,
+        deployment_note=deployment_note,
     )
 
+    patched_texts = {
+        linker_out: patched_linker,
+        startup_out: patched_startup,
+        cmake_out: patched_cmake,
+        root_cmake_path: patched_root_cmake,
+        namespace_cmake_path: patched_namespace_cmake,
+    }
+    if deployment_dir is not None:
+        patched_texts[deployment_cmake_path] = patched_deployment_cmake
+        patched_texts[top_cmake_path] = patched_top_cmake
+
     if dry_run:
-        for label, before_path, after_text in (
-            ("linker script", linker_out, patched_linker),
-            ("startup script", startup_out, patched_startup),
-            ("Hardware/CMakeLists.txt", cmake_out, patched_cmake),
-        ):
-            before_text = before_path.read_text() if before_path.exists() else ""
+        for out_path, after_text in patched_texts.items():
+            before_text = out_path.read_text() if out_path.exists() else ""
             diff = difflib.unified_diff(
                 before_text.splitlines(keepends=True),
                 after_text.splitlines(keepends=True),
-                fromfile=str(before_path) if before_path.exists() else "(new file)",
-                tofile=str(before_path),
+                fromfile=str(out_path) if out_path.exists() else "(new file)",
+                tofile=str(out_path),
             )
             diff_text = "".join(diff)
             if diff_text:
-                print(f"--- diff for {label} ---")
+                print(f"--- diff for {out_path} ---")
                 print(diff_text)
     else:
-        linker_out.parent.mkdir(parents=True, exist_ok=True)
-        startup_out.parent.mkdir(parents=True, exist_ok=True)
-        linker_out.write_text(patched_linker)
-        startup_out.write_text(patched_startup)
-        cmake_out.write_text(patched_cmake)
+        for out_path, after_text in patched_texts.items():
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(after_text)
 
     print(report.render())
     return 0
@@ -130,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "sync":
-            return _run_sync(Path.cwd(), args.cubemx_project, args.dry_run, args.deployment)
+            return _run_sync(Path.cwd(), args.cubemx_project, args.dry_run, args.deployment, args.wire_deployment)
     except CliError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

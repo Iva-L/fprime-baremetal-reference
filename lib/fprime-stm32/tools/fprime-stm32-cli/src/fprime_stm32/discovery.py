@@ -96,3 +96,53 @@ def discover_cubemx_sources(cubemx_path: Path) -> CubeMxSources:
         chip_tag=chip_tag,
         cubemx_cmake_file=cubemx_cmake_file,
     )
+
+
+def find_root_cmakelists(namespace_root: Path) -> Path:
+    """Locate the outer bootstrap root's CMakeLists.txt (the one with project(...) in it),
+    one directory above the F' namespace root."""
+    root_cmake = namespace_root.parent / "CMakeLists.txt"
+    if not root_cmake.is_file():
+        raise ProjectDiscoveryError(f"No root CMakeLists.txt found at {root_cmake}")
+    if "project(" not in root_cmake.read_text():
+        raise ProjectDiscoveryError(f"{root_cmake} has no project(...) call - not the project's root CMakeLists.txt")
+    return root_cmake
+
+
+def find_namespace_cmakelists(namespace_root: Path) -> Path:
+    namespace_cmake = namespace_root / "CMakeLists.txt"
+    if not namespace_cmake.is_file():
+        raise ProjectDiscoveryError(f"No namespace CMakeLists.txt found at {namespace_cmake}")
+    return namespace_cmake
+
+
+def find_deployment_to_wire(namespace_root: Path, explicit_name: str | None) -> Path | None:
+    """Find the F' Deployment directory (under Deployments/) whose CMakeLists.txt/Top/CMakeLists.txt
+    should be wired for the stm32h7 platform. Returns None if none exist yet and none was requested.
+    """
+    deployments_dir = namespace_root / "Deployments"
+
+    if explicit_name is not None:
+        deployment_dir = deployments_dir / explicit_name
+        if not deployment_dir.is_dir():
+            raise ProjectDiscoveryError(f"--wire-deployment {explicit_name!r} not found (expected {deployment_dir})")
+    else:
+        if not deployments_dir.is_dir():
+            return None
+        candidates = sorted(p for p in deployments_dir.iterdir() if p.is_dir())
+        if not candidates:
+            return None
+        if len(candidates) > 1:
+            names = ", ".join(c.name for c in candidates)
+            raise ProjectDiscoveryError(
+                f"Found multiple deployments under {deployments_dir} ({names}). "
+                "Pass --wire-deployment <name> to pick one."
+            )
+        deployment_dir = candidates[0]
+
+    if not (deployment_dir / "CMakeLists.txt").is_file():
+        raise ProjectDiscoveryError(f"{deployment_dir} has no CMakeLists.txt")
+    if not (deployment_dir / "Top" / "CMakeLists.txt").is_file():
+        raise ProjectDiscoveryError(f"{deployment_dir} has no Top/CMakeLists.txt")
+
+    return deployment_dir
