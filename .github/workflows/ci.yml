@@ -76,4 +76,4 @@ jobs:
       - name: Run Drv/STM32GpioDriver Host Tests
         run: |
           # Navigate to the STM32GpioDriver component directory and run host tests
-          cd $GITHUB_WORKSPACE/lib/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage
+          cd $GITHUB_WORKSPACE/lib/fprime-stm32/fprime-stm32/Drv/STM32GpioDriver && fprime-util check --coverage
