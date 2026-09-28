@@ -67,38 +67,45 @@ def patch_namespace_cmakelists(text: str) -> tuple[str, list[str]]:
 def ensure_deployment_registered(
     root_text: str, namespace_text: str, namespace_name: str, deployment_name: str
 ) -> tuple[str, str, list[str], list[str]]:
-    """Make sure Deployments/<deployment_name> is add_fprime_subdirectory'd somewhere reachable,
-    matching fprime's convention of registering deployments in the ROOT CMakeLists.txt (the
-    namespace CMakeLists.txt registers Components/config/Hardware instead).
+    """Make sure Deployments/<deployment_name> is add_fprime_subdirectory'd in the ROOT
+    CMakeLists.txt, never the namespace one, matching fprime's convention of registering
+    deployments in root (the namespace CMakeLists.txt registers Components/config/Hardware
+    instead) and sidestepping same-file ordering entirely: root always finishes processing the
+    whole namespace subtree - including whatever Hardware/Components/config get added to it -
+    before moving on to a later root-level add_fprime_subdirectory call, so a deployment
+    registered in root can never race a same-file insertion order bug.
 
-    `fprime-util new --deployment`'s own interactive prompt sometimes appends a registration to
-    the NAMESPACE CMakeLists.txt with a path that's only valid from ROOT context (it repeats the
-    namespace directory name as a prefix, e.g. "${CMAKE_CURRENT_LIST_DIR}/Stm32h7Project/Deployments/..."
-    inside Stm32h7Project's own CMakeLists.txt, where CMAKE_CURRENT_LIST_DIR is already
-    Stm32h7Project/) -- CMake then can't find that nonexistent doubly-nested directory. This
-    detects and removes exactly that broken line, then ensures a correct one exists in root.
+    `fprime-util new --deployment`'s own interactive prompt sometimes registers the deployment
+    directly in the NAMESPACE CMakeLists.txt instead of root - sometimes with a path that's only
+    valid from root context (self-referentially repeating the namespace name, e.g.
+    "${CMAKE_CURRENT_LIST_DIR}/Stm32h7Project/Deployments/..." inside Stm32h7Project's own
+    CMakeLists.txt, where CMAKE_CURRENT_LIST_DIR is already Stm32h7Project/ - CMake then can't
+    find that nonexistent doubly-nested directory), and sometimes with an otherwise-correct path
+    that simply lands before Hardware/ is registered in the same file, which fprime's CMake API
+    rejects just as fatally ('FprimeStm32' must be defined before the deployment). Either way,
+    the fix is the same: pull any such registration out of the namespace file and into root.
     """
     root_actions: list[str] = []
     namespace_actions: list[str] = []
 
-    escaped_namespace = re.escape(namespace_name)
     escaped_deployment = re.escape(deployment_name)
-
-    broken_re = re.compile(
-        r'[ \t]*add_fprime_subdirectory\(\s*"\$\{CMAKE_CURRENT_LIST_DIR\}/'
-        rf'{escaped_namespace}/Deployments/{escaped_deployment}/?"\s*\)\s*\n?'
+    namespace_registration_re = re.compile(
+        rf'[ \t]*add_fprime_subdirectory\([^)]*Deployments/{escaped_deployment}\b[^)]*\)[ \t]*\n?'
     )
-    broken_match = broken_re.search(namespace_text)
-    if broken_match is not None:
-        namespace_text = namespace_text[: broken_match.start()] + namespace_text[broken_match.end() :]
+
+    namespace_match = namespace_registration_re.search(namespace_text)
+    if namespace_match is not None:
+        namespace_text = namespace_text[: namespace_match.start()] + namespace_text[namespace_match.end() :]
         namespace_actions.append(
-            f"Removed a broken Deployments/{deployment_name} registration ('new --deployment' "
-            "sometimes adds this to the namespace CMakeLists.txt with a path that only resolves "
-            "correctly from the root CMakeLists.txt)"
+            f"Moved the Deployments/{deployment_name} registration out of the namespace "
+            "CMakeLists.txt into root ('new --deployment' sometimes registers deployments there "
+            "directly, but fprime's CMake API requires a deployment to be registered after "
+            "Hardware/ - moving it to root, which always finishes the whole namespace subtree "
+            "first, guarantees that regardless of ordering inside the namespace file)"
         )
 
-    already_registered_re = re.compile(rf"add_fprime_subdirectory\([^)]*Deployments/{escaped_deployment}\b[^)]*\)")
-    if already_registered_re.search(root_text) is None and already_registered_re.search(namespace_text) is None:
+    already_in_root_re = re.compile(rf"add_fprime_subdirectory\([^)]*Deployments/{escaped_deployment}\b[^)]*\)")
+    if already_in_root_re.search(root_text) is None:
         registration_path = f"${{CMAKE_CURRENT_LIST_DIR}}/{namespace_name}/Deployments/{deployment_name}/"
         root_text = root_text.rstrip("\n") + f'\nadd_fprime_subdirectory("{registration_path}")\n'
         root_actions.append(f"Registered Deployments/{deployment_name} in the project's build graph")
