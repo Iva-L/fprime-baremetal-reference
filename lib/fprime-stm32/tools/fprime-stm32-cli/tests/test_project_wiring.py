@@ -56,6 +56,16 @@ NAMESPACE_CMAKELISTS_WITH_BROKEN_REGISTRATION = """add_fprime_subdirectory("${CM
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Stm32h7Project/Deployments/Stm32h7Deployment/")
 """
 
+# Reproduces a second real bug, hit on a from-scratch project: `fprime-util new --deployment`
+# registered the deployment with a CORRECT path, but directly in the namespace CMakeLists.txt,
+# positioned before Hardware/ would later be added there. fprime's CMake API requires a
+# deployment to be registered after the targets (FprimeStm32) it depends on, so this fails at
+# configure time with "'FprimeStm32' must be defined before ... deployment" even though the path
+# itself is fine - it's the file/ordering that's wrong, not the path.
+NAMESPACE_CMAKELISTS_WITH_CORRECTLY_PATHED_REGISTRATION = """add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Deployments/Stm32h7Deployment/")
+"""
+
 
 def test_patch_root_cmakelists_enables_asm_and_adds_config():
     patched, actions = patch_root_cmakelists(ROOT_CMAKELISTS)
@@ -145,6 +155,23 @@ def test_ensure_deployment_registered_fixes_broken_namespace_registration():
 
     # the broken, doubly-nested line is gone from the namespace file
     assert "Stm32h7Project/Deployments/Stm32h7Deployment" not in namespace
+    assert len(namespace_actions) == 1
+
+    # a correct registration now exists in root instead
+    assert 'add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Stm32h7Project/Deployments/Stm32h7Deployment/")' in root
+    assert len(root_actions) == 1
+
+
+def test_ensure_deployment_registered_moves_correctly_pathed_namespace_registration():
+    root, namespace, root_actions, namespace_actions = ensure_deployment_registered(
+        ROOT_CMAKELISTS_MISSING_DEPLOYMENT,
+        NAMESPACE_CMAKELISTS_WITH_CORRECTLY_PATHED_REGISTRATION,
+        "Stm32h7Project",
+        "Stm32h7Deployment",
+    )
+
+    # the deployment line is gone from the namespace file, even though its path was fine
+    assert "Deployments/Stm32h7Deployment" not in namespace
     assert len(namespace_actions) == 1
 
     # a correct registration now exists in root instead
