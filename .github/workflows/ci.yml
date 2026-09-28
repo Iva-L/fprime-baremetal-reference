@@ -40,12 +40,12 @@ jobs:
       - name: Generate CMake Cache
         run: |
           # Generates build files targeting stm32h7 baremetal platform
-          fprime-util generate stm32h7
+          fprime-util purge && fprime-util generate
 
       - name: Cross-Compile F' Binary
         run: |
           # Builds the ReferenceDeployment executable
-          fprime-util build stm32h7
+          fprime-util build
 
       - name: Generate Unit Test CMake Cache
         run: |
