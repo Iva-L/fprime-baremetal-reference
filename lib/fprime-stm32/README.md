@@ -38,6 +38,8 @@ used by the direct bare-metal GPIO examples.
   (`Stm32::TimerInstance::Tim1`/`Tim2`/`Tim3`/`Tim4`/`...`) via `open()`
 - `Drv/STM32UartDriver`: USART1 DMA-backed byte-stream driver
 - `Drv/STM32I2cDriver`: blocking/polled I2C master driver (`Drv.I2c`)
+- `Drv/STM32SpiDriver`: blocking/polled SPI master driver (`Drv.Spi`), no
+  DMA/interrupts, multi-instance-safe (different bus + chip-select per instance)
 - `Drv/config`: driver-tuning headers (e.g. `UartDriverConfig.hpp`) and
   `Stm32Config.hpp`, the per-peripheral-instance enable/disable switchboard
   used by every driver below (see "Enabling and selecting peripheral
@@ -238,6 +240,51 @@ library root), also add `lib/fprime-sensors` as a plain
 `${CMAKE_CURRENT_BINARY_DIR}/lib/fprime-sensors`, where fpp generates the
 matching `*Ac.hpp` headers when the library isn't registered through
 `library_locations`.
+
+## SPI bus (`Stm32SpiDriver`)
+
+`Stm32::Stm32SpiDriver` implements the framework's `Drv.Spi` interface
+(guarded `SpiWriteRead`, returning `Drv::SpiStatus`, plus the deprecated
+void-returning `SpiReadWrite`) against SPI5 on PF6/PF7/PF8/PF9
+(NSS/SCK/MISO/MOSI). Like `Stm32I2cDriver`, it is deliberately blocking/
+polled with no DMA and no interrupts: sensor payloads on this bus (6-8 bytes
+for the BMP280) are small enough that a single blocking
+`HAL_SPI_TransmitReceive()` call is simpler and cheaper than setting up
+DMA-safe AXI SRAM buffers and Cortex-M7 D-cache maintenance for a transfer
+that's over before either would matter.
+
+SPI5 is configured `NSS_SOFT` in this project's CubeMX setup — the HAL never
+drives a chip-select pin on its own — so this driver owns the CS GPIO
+directly rather than treating it as the peripheral's problem: `open(instance,
+csPort, csPin, timeoutMs)` configures the pin as a push-pull output (idle
+high) alongside `MX_SPIn_Init()`, and every `SpiWriteRead`/`SpiReadWrite` call
+drives it low for the exact duration of the `HAL_SPI_TransmitReceive()` call.
+
+Unlike `Stm32I2cDriver` (which caches its resolved HAL handle in a
+file-static pointer — fine for I2C1 being the only bus in use, but a latent
+single-instance limitation), `Stm32SpiDriver` stores only HAL-free state on
+each component instance (the `SpiInstance` enum, the chip-select
+`Stm32::GpioPort`+pin, the timeout) and re-resolves the real HAL pointers
+from that state on every call. This is deliberate, not incidental: a BMP280
+and any future SPI sensor on a different bus or chip-select need two
+simultaneously-open `Stm32SpiDriver` instances that never share mutable
+state.
+
+`open(instance, csPort, csPin, timeoutMs)` selects the peripheral
+(`SpiInstance::Spi5` today; `Spi1`-`Spi4`/`Spi6` are declared for other
+boards but not yet CubeMX-configured), the chip-select pin using the same
+`Stm32::GpioPort` vocabulary `Stm32GpioDriver::open()` uses, and a
+per-transaction watchdog (default 10 ms, matching `Stm32I2cDriver`'s
+convention). It follows the same `Common`/`Real`/`Stub` HAL boundary
+convention as every other driver here — see
+[`Stm32SpiDriver`'s own `docs/sdd.md`](Drv/STM32SpiDriver/docs/sdd.md) for
+the full design.
+
+Not yet wired to a sensor component or validated on real hardware — the
+BMP280 wiring follows the exact "Adding a sensor" pattern above (`BmpManager`
+already declares an `output port spiReadWrite: Drv.SpiReadWrite`, matching
+this driver's port type directly with no adapter needed) but is a separate,
+not-yet-done checklist item.
 
 ## Hardware validation
 
