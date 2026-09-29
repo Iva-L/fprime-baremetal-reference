@@ -40,55 +40,29 @@ class Stm32SpiDriverTester final : public Stm32SpiDriverGTestBase {
     // Tests
     // ----------------------------------------------------------------------
 
-    //! open() at the default (Fast) speed succeeds and emits PortOpened
-    void testOpenSuccessFast();
-
-    //! open() at Standard speed succeeds and reports the right speed string
-    void testOpenSuccessStandard();
-
-    //! open() at FastPlus speed succeeds and reports the right speed string
-    void testOpenSuccessFastPlus();
+    //! open() succeeds, forwards instance/CS to the HAL boundary, and emits PortOpened
+    void testOpenSuccess();
 
     //! open() reports FAILURE and leaves the driver unopened when the HAL
     //! boundary's init fails (injected via Stub_hwOpenSucceeds)
     void testOpenFailure();
 
-    //! write()/read()/writeRead() before open() all report Spi_OPEN_ERR
-    void testWriteBeforeOpen();
-    void testReadBeforeOpen();
-    void testWriteReadBeforeOpen();
+    //! SpiWriteRead()/SpiReadWrite() before open() report/return SPI_OPEN_ERR
+    void testSpiWriteReadBeforeOpen();
+    void testSpiReadWriteBeforeOpen();
 
-    //! write() forwards the exact address and bytes to the HAL boundary
-    void testWriteSuccess();
+    //! SpiWriteRead() asserts CS active for the duration of the transfer and
+    //! forwards the exact write bytes / returns the exact read bytes
+    void testSpiWriteReadSuccess();
 
-    //! write() propagates a HAL boundary failure status unchanged
-    void testWriteFailure();
+    //! SpiWriteRead() propagates a HAL boundary failure status and emits HalError
+    void testSpiWriteReadFailure();
 
-    //! A write buffer larger than the stub's capture buffer is truncated,
-    //! not overrun
-    void testWriteLargeBufferCapped();
+    //! SpiReadWrite() performs the same transfer as SpiWriteRead() but discards the status
+    void testSpiReadWriteSuccess();
 
-    //! read() forwards the exact address/length and returns the bytes the
-    //! HAL boundary supplied
-    void testReadSuccess();
-
-    //! read() propagates a HAL boundary failure status unchanged
-    void testReadFailure();
-
-    //! A read request larger than the stub's canned response is only
-    //! partially filled, not overrun; the requested length is still
-    //! reported in full
-    void testReadLargeBufferCapped();
-
-    //! writeRead() performs the write then the read to the same address
-    void testWriteReadSuccess();
-
-    //! writeRead() short-circuits on a failed write: the read must never run
-    void testWriteReadTransmitFailureShortCircuits();
-
-    //! writeRead() propagates a failure from the read half after a
-    //! successful write
-    void testWriteReadReceiveFailure();
+    //! A write buffer larger than the stub's capture buffer is truncated, not overrun
+    void testSpiWriteReadLargeBufferCapped();
 
   private:
     // ----------------------------------------------------------------------
