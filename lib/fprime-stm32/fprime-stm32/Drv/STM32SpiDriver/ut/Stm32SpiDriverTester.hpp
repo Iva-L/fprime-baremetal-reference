@@ -1,18 +1,18 @@
 // ======================================================================
-// \title  Stm32I2cDriverTester.hpp
+// \title  Stm32SpiDriverTester.hpp
 // \author ivanlara
-// \brief  hpp file for Stm32I2cDriver component test harness implementation class
+// \brief  hpp file for Stm32SpiDriver component test harness implementation class
 // ======================================================================
 
-#ifndef Stm32_Stm32I2cDriverTester_HPP
-#define Stm32_Stm32I2cDriverTester_HPP
+#ifndef Stm32_Stm32SpiDriverTester_HPP
+#define Stm32_Stm32SpiDriverTester_HPP
 
-#include "fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp"
-#include "fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriverGTestBase.hpp"
+#include "fprime-stm32/Drv/STM32SpiDriver/Stm32SpiDriver.hpp"
+#include "fprime-stm32/Drv/STM32SpiDriver/Stm32SpiDriverGTestBase.hpp"
 
 namespace Stm32 {
 
-class Stm32I2cDriverTester final : public Stm32I2cDriverGTestBase {
+class Stm32SpiDriverTester final : public Stm32SpiDriverGTestBase {
   public:
     // ----------------------------------------------------------------------
     // Constants
@@ -29,11 +29,11 @@ class Stm32I2cDriverTester final : public Stm32I2cDriverGTestBase {
     // Construction and destruction
     // ----------------------------------------------------------------------
 
-    //! Construct object Stm32I2cDriverTester
-    Stm32I2cDriverTester();
+    //! Construct object Stm32SpiDriverTester
+    Stm32SpiDriverTester();
 
-    //! Destroy object Stm32I2cDriverTester
-    ~Stm32I2cDriverTester();
+    //! Destroy object Stm32SpiDriverTester
+    ~Stm32SpiDriverTester();
 
   public:
     // ----------------------------------------------------------------------
@@ -53,7 +53,7 @@ class Stm32I2cDriverTester final : public Stm32I2cDriverGTestBase {
     //! boundary's init fails (injected via Stub_hwOpenSucceeds)
     void testOpenFailure();
 
-    //! write()/read()/writeRead() before open() all report I2C_OPEN_ERR
+    //! write()/read()/writeRead() before open() all report Spi_OPEN_ERR
     void testWriteBeforeOpen();
     void testReadBeforeOpen();
     void testWriteReadBeforeOpen();
@@ -97,7 +97,7 @@ class Stm32I2cDriverTester final : public Stm32I2cDriverGTestBase {
 
     //! Reset every Stub_* global back to its documented default so each
     //! test starts from a known, hermetic state regardless of run order --
-    //! these are shared, process-wide globals (see Stm32I2cDriverStub.cpp),
+    //! these are shared, process-wide globals (see Stm32SpiDriverStub.cpp),
     //! not per-Tester state.
     void resetStubState();
 
@@ -118,7 +118,7 @@ class Stm32I2cDriverTester final : public Stm32I2cDriverGTestBase {
     // ----------------------------------------------------------------------
 
     //! The component under test
-    Stm32I2cDriver component;
+    Stm32SpiDriver component;
 };
 
 }  // namespace Stm32
