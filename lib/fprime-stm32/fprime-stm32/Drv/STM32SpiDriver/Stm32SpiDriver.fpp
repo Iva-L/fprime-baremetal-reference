@@ -1,6 +1,6 @@
 module Stm32 {
-    @ Driver for SPI communication for the STM32
-    passive component STM32SpiDriver {
+    @ Driver for SPI communication for the Stm32
+    passive component Stm32SpiDriver {
 
         ##############################################################################
         #### Uncomment the following examples to start customizing your component ####
