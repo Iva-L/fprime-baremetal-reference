@@ -1,37 +1,25 @@
 module Stm32 {
-    @ Driver for SPI communication for the Stm32
-    passive component Stm32SpiDriver {
 
-        ##############################################################################
-        #### Uncomment the following examples to start customizing your component ####
-        ##############################################################################
+  passive component Stm32SpiDriver {
 
-        # @ Example async command
-        # async command COMMAND_NAME(param_name: U32)
+    import Drv.Spi
 
-        # @ Example telemetry counter
-        # telemetry ExampleCounter: U64
+    # ----------------------------------------------------------------------
+    # Special ports
+    # ----------------------------------------------------------------------
 
-        # @ Example event
-        # event ExampleStateEvent(example_state: Fw.On) severity activity high id 0 format "State set to {}"
+    event port Log
 
-        # @ Example port: receiving calls from the rate group
-        # sync input port run: Svc.Sched
+    text event port LogText
 
-        # @ Example parameter
-        # param PARAMETER_NAME: U32
+    time get port Time
 
-        ###############################################################################
-        # Standard AC Ports: Required for Channels, Events, Commands, and Parameters  #
-        ###############################################################################
-        @ Port for requesting the current time
-        time get port timeCaller
+    # ----------------------------------------------------------------------
+    # Events
+    # ----------------------------------------------------------------------
 
-        @ Enables event handling
-        import Fw.Event
+    include "Events.fppi"
 
-        @ Enables telemetry channels handling
-        import Fw.Channel
+  }
 
-    }
 }

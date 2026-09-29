@@ -19,6 +19,7 @@ register_fprime_module(
     "${CMAKE_CURRENT_LIST_DIR}/Stm32SpiDriver.hpp"
   DEPENDS
     ${STM32_SPI_DRIVER_IMPL_DEPENDS}
+    fprime-stm32_Drv_STM32GpioDriver
 )
 
 ### Unit Tests ###
@@ -32,5 +33,6 @@ register_fprime_ut(
         "${CMAKE_CURRENT_LIST_DIR}/test/ut/Stm32SpiDriverTester.cpp"
     DEPENDS
         STest # For rules-based testing
+        fprime-stm32_Drv_STM32GpioDriver
     UT_AUTO_HELPERS
 )
