@@ -31,6 +31,11 @@ TEST(Nominal, PollWithTickNoOverrunAtExactBoundary) {
     tester.testPollWithTickNoOverrunAtExactBoundary();
 }
 
+TEST(Nominal, TwoInstancesDoNotInterfere) {
+    Stm32::STM32TimerTester tester;
+    tester.testTwoInstancesDoNotInterfere();
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
