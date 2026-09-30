@@ -158,7 +158,7 @@ F´ resolves this through project-local overrides of its framework-wide constant
 
 ```bash
 # In stm32h7-project
-cp -r lib/fprime-stm32/fprime-stm32/Templates/stm32h7/config ./
+cp -r lib/fprime-stm32/fprime-stm32/Templates/stm32h7/config Stm32h7Project
 ```
 
 > [!NOTE]
