@@ -18,7 +18,8 @@ namespace Stm32 {
 // Construction, initialization, and destruction
 // ----------------------------------------------------------------------
 
-Stm32I2cDriver ::Stm32I2cDriver(const char* const compName) : Stm32I2cDriverComponentBase(compName), m_opened(false) {}
+Stm32I2cDriver ::Stm32I2cDriver(const char* const compName)
+    : Stm32I2cDriverComponentBase(compName), m_instance(I2cInstance::I2c1), m_opened(false) {}
 
 Stm32I2cDriver ::~Stm32I2cDriver() {}
 

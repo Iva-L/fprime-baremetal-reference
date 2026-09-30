@@ -86,6 +86,11 @@ TEST(Nominal, WriteReadReceiveFailure) {
     tester.testWriteReadReceiveFailure();
 }
 
+TEST(Nominal, TwoInstancesDoNotInterfere) {
+    Stm32::Stm32I2cDriverTester tester;
+    tester.testTwoInstancesDoNotInterfere();
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

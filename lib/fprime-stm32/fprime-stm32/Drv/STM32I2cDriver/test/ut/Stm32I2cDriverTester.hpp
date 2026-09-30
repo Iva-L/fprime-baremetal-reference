@@ -90,6 +90,12 @@ class Stm32I2cDriverTester final : public Stm32I2cDriverGTestBase {
     //! successful write
     void testWriteReadReceiveFailure();
 
+    //! Two simultaneously-open Stm32I2cDriver instances (different buses)
+    //! don't share any mutable state: opening a second instance on I2c2
+    //! after the first is already open on I2c1 must not disturb the first
+    //! instance's own ability to transact.
+    void testTwoInstancesDoNotInterfere();
+
   private:
     // ----------------------------------------------------------------------
     // Test support

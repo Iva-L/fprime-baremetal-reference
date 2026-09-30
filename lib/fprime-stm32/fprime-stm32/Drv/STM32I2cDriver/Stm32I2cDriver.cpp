@@ -19,10 +19,6 @@ constexpr uint32_t I2C_TIMING_STANDARD_100KHZ = 0x307075B1U;
 constexpr uint32_t I2C_TIMING_FAST_400KHZ = 0x00B03FDBU;
 constexpr uint32_t I2C_TIMING_FASTPLUS_1MHZ = 0x0050174FU;
 
-//! Single-instance HAL handle pointer, set once in the real hwOpen() and
-//! used by every subsequent hw* call -- mirrors Stm32UartDriver's s_huart.
-I2C_HandleTypeDef* s_hi2c = nullptr;
-
 //! Convert a HAL-free I2cInstance to the corresponding HAL handle. Only
 //! I2c1 has a CubeMX-generated handle in this project today.
 I2C_HandleTypeDef* toHalHandle(Stm32::I2cInstance instance) {
@@ -126,7 +122,7 @@ Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
         }
     }
 
-    s_hi2c = halHandle;
+    this->m_instance = instance;
     this->m_opened = true;
 
     Fw::LogStringArg _speedArg(busSpeed == Stm32::I2cBusSpeed::Standard ? "Standard" :
@@ -141,33 +137,40 @@ Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
 //! not the HAL_StatusTypeDef -- distinguishes I2C_ADDRESS_ERR from a
 //! data-phase/bus I2C_WRITE_ERR/I2C_READ_ERR.
 Drv::I2cStatus Stm32I2cDriver ::hwMasterTransmit(U16 devAddress, U8* data, U16 len) {
-    
-    FW_ASSERT(data!=nullptr);
-    
+    FW_ASSERT(data != nullptr);
+
+    // Re-resolved on every call (not cached in file-static state) so that
+    // multiple Stm32I2cDriver instances -- different buses -- can be open
+    // at the same time without sharing any mutable HAL state.
+    I2C_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
+
     const HAL_StatusTypeDef status =
-        HAL_I2C_Master_Transmit(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
+        HAL_I2C_Master_Transmit(halHandle, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
     if (status == HAL_OK) {
         return Drv::I2cStatus::I2C_OK;
     }
     Fw::LogStringArg _op("Master_Transmit");
     this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
-    return ((HAL_I2C_GetError(s_hi2c) & HAL_I2C_ERROR_AF) != 0U) ? Drv::I2cStatus::I2C_ADDRESS_ERR
-                                                                  : Drv::I2cStatus::I2C_WRITE_ERR;
+    return ((HAL_I2C_GetError(halHandle) & HAL_I2C_ERROR_AF) != 0U) ? Drv::I2cStatus::I2C_ADDRESS_ERR
+                                                                     : Drv::I2cStatus::I2C_WRITE_ERR;
 }
 
 Drv::I2cStatus Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 len) {
-    
-    FW_ASSERT(data!=nullptr);
-    
+    FW_ASSERT(data != nullptr);
+
+    I2C_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
+
     const HAL_StatusTypeDef status =
-        HAL_I2C_Master_Receive(s_hi2c, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
+        HAL_I2C_Master_Receive(halHandle, static_cast<uint16_t>(devAddress << 1U), data, len, TRANSACTION_TIMEOUT_MS);
     if (status == HAL_OK) {
         return Drv::I2cStatus::I2C_OK;
     }
     Fw::LogStringArg _op("Master_Receive");
     this->log_WARNING_HI_HalError(_op, devAddress, static_cast<I32>(status));
-    return ((HAL_I2C_GetError(s_hi2c) & HAL_I2C_ERROR_AF) != 0U) ? Drv::I2cStatus::I2C_ADDRESS_ERR
-                                                                  : Drv::I2cStatus::I2C_READ_ERR;
+    return ((HAL_I2C_GetError(halHandle) & HAL_I2C_ERROR_AF) != 0U) ? Drv::I2cStatus::I2C_ADDRESS_ERR
+                                                                     : Drv::I2cStatus::I2C_READ_ERR;
 }
 
 }  // namespace Stm32

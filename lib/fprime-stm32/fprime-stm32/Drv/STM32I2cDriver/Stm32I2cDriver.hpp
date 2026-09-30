@@ -92,6 +92,8 @@ class Stm32I2cDriver final : public Stm32I2cDriverComponentBase {
                                       Fw::Buffer& writeBuffer,
                                       Fw::Buffer& readBuffer) override;
 
+    I2cInstance m_instance;
+
     bool m_opened;
 };
 
