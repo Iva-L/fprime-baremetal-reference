@@ -1,7 +1,7 @@
 include(CheckCXXSourceCompiles)
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/FprimeBaremetalReference/config/fprime-stm32/Stm32Config.hpp")
-    list(APPEND CMAKE_REQUIRED_INCLUDES "${CMAKE_SOURCE_DIR}/FprimeBaremetalReference/config/fprime-stm32")
+if(EXISTS "${CMAKE_SOURCE_DIR}/FprimeStm32BaremetalReference/config/fprime-stm32/Stm32Config.hpp")
+    list(APPEND CMAKE_REQUIRED_INCLUDES "${CMAKE_SOURCE_DIR}/FprimeStm32BaremetalReference/config/fprime-stm32")
 elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/config/Stm32Config.hpp")
     list(APPEND CMAKE_REQUIRED_INCLUDES "${CMAKE_CURRENT_LIST_DIR}/config")
 endif()
