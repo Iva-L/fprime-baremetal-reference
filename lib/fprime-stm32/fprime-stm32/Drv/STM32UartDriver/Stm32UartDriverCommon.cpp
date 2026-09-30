@@ -19,6 +19,7 @@ namespace Stm32 {
 
 Stm32UartDriver ::Stm32UartDriver(const char* const compName)
     : Stm32UartDriverComponentBase(compName),
+      m_instance(UsartInstance::Usart1),
       m_txHead(0),
       m_txCount(0),
       m_txTimeoutUs(0),
@@ -54,6 +55,7 @@ void Stm32UartDriver ::signalUartError(U32 errorCode) {
 
 Fw::Success Stm32UartDriver ::open(FwSizeType allocationSize, UsartInstance instance, U32 preemptPriority,
                                     U32 subPriority, U32 baudRate) {
+    this->m_instance = instance;
     this->m_allocationSize = allocationSize;
 
     this->m_baudRate = baudRate;

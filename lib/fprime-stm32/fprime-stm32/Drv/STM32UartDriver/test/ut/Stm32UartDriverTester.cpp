@@ -341,6 +341,27 @@ void Stm32UartDriverTester ::testUartErrorRecoveryDmaError() {
     ASSERT_TLM_RxErrorCount(0, 1u);
 }
 
+void Stm32UartDriverTester ::testTwoInstancesDoNotInterfere() {
+    (void)this->component.open(64, UsartInstance::Usart1, 0, 0, 115200);
+
+    // A second, freestanding instance on a different USART. Before the
+    // multi-instance fix, the real HAL boundary's ISR callback trampoline
+    // cached a single {handle, component} pair shared by every
+    // Stm32UartDriver in the process -- opening this second instance would
+    // have silently rerouted the first instance's DMA-completion/RX/error
+    // callbacks to itself.
+    Stm32UartDriver secondComponent("Stm32UartDriverSecond");
+    const Fw::Success secondOpenStatus = secondComponent.open(64, UsartInstance::Usart2, 0, 0, 115200);
+    ASSERT_EQ(secondOpenStatus, Fw::Success::SUCCESS);
+
+    // The first instance must still be fully functional, unaffected by the
+    // second instance's later open().
+    U8 data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    Fw::Buffer buffer(data, sizeof(data));
+    const Drv::ByteStreamStatus status = this->invoke_to_send(0, buffer);
+    ASSERT_EQ(status, Drv::ByteStreamStatus::OP_OK);
+}
+
 Fw::Buffer Stm32UartDriverTester ::from_allocate_handler(FwIndexType portNum, FwSizeType size) {
     this->pushFromPortEntry_allocate(size);
     if (!this->m_allocateReturnsValid) {

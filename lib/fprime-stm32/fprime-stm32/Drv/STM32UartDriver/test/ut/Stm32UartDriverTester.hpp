@@ -99,6 +99,13 @@ class Stm32UartDriverTester final : public Stm32UartDriverGTestBase {
     //! TxErrorCount and RxErrorCount
     void testUartErrorRecoveryDmaError();
 
+    //! Two simultaneously-open Stm32UartDriver instances (different USART
+    //! peripherals, e.g. USART1 for the ground link and USART2 for a second
+    //! radio) don't share any mutable state: opening a second instance
+    //! after the first is already open must not disturb the first
+    //! instance's own ability to send.
+    void testTwoInstancesDoNotInterfere();
+
   private:
     // ----------------------------------------------------------------------
     // Test support
