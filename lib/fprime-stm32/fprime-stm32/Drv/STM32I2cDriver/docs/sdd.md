@@ -39,6 +39,8 @@ Unlike UART's `BaudRate` (computed at runtime by `HAL_UART_Init()` from the peri
 
 `MX_I2Cn_Init()` traps in `Error_Handler()` on failure rather than returning a status, matching every other `MX_*_Init()` in this project, so `open()` cannot observe a failure there -- only the speed-override `HAL_I2C_Init()` call (when the requested preset differs from CubeMX's default) has a real failure path.
 
+**Multi-instance safety**: `open()` stores only the HAL-free `I2cInstance` enum as a component member and `hwMasterTransmit`/`hwMasterReceive` re-resolve `toHalHandle(this->m_instance)` fresh on every call, rather than caching the resolved `I2C_HandleTypeDef*` in file-static state. This is what lets two `Stm32I2cDriver` instances -- e.g. one for an IMU on I2C1 and a second for a temperature sensor on I2C2 -- be open at the same time with no shared mutable state between them. I2C has no ISR/callback (see 3.1), so no lookup table is needed here; contrast `Stm32UartDriver`/`STM32Timer`, whose HAL callbacks receive only a raw handle pointer and need a small registry to resolve which live component instance owns it.
+
 ### 3.4 `write`/`read`/`writeRead`
 
 Each handler asserts the caller's `Fw::Buffer`(s) are non-null and fit in a `U16` (the HAL's `Size`/`DevAddress` parameter width), then calls the corresponding `hw*` boundary method. On failure, `hwIsAddressNack()` (checks `HAL_I2C_GetError() & HAL_I2C_ERROR_AF`) distinguishes "no device answered" (`I2C_ADDRESS_ERR`) from a data-phase/bus failure (`I2C_WRITE_ERR`/`I2C_READ_ERR`).

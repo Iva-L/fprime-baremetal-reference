@@ -32,6 +32,7 @@ Fw::Success Stm32I2cDriver ::open(I2cInstance instance, I2cBusSpeed busSpeed) {
     if (!Stub_hwOpenSucceeds) {
         return Fw::Success::FAILURE;
     }
+    this->m_instance = instance;
     this->m_opened = true;
     Fw::LogStringArg _speedArg(busSpeed == Stm32::I2cBusSpeed::Standard ? "Standard" :
                                busSpeed == Stm32::I2cBusSpeed::Fast ? "Fast" :
