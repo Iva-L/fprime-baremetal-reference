@@ -81,6 +81,11 @@ TEST(Nominal, UartErrorRecoveryDmaError) {
     tester.testUartErrorRecoveryDmaError();
 }
 
+TEST(Nominal, TwoInstancesDoNotInterfere) {
+    Stm32::Stm32UartDriverTester tester;
+    tester.testTwoInstancesDoNotInterfere();
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -16,12 +16,23 @@
 
 namespace {
 
-//! Single-instance callback trampoline: the HAL callbacks below are free
-//! functions with no user-context pointer, and the topology only ever
-//! instantiates one Stm32UartDriver per physical USART/UART peripheral.
-Stm32::Stm32UartDriver* s_instance = nullptr;
+//! Callback registry: the HAL callbacks below are free functions with no
+//! user-context pointer, only a raw UART_HandleTypeDef*, so mapping back to
+//! "which Stm32UartDriver instance owns this handle" needs a table rather
+//! than a single cached pointer -- that's what lets multiple instances
+//! (e.g. USART1 for the ground link and USART2 for a second radio) be open
+//! at the same time without one instance's ISR traffic misrouting to
+//! another's. Indexed by UsartInstance's own cardinality, matching the
+//! "named capacity constant" convention already used elsewhere in this
+//! codebase (e.g. Os::Baremetal::TaskRunner::TASK_CAPACITY).
+constexpr FwSizeType USART_INSTANCE_CAPACITY = 8;
 
-UART_HandleTypeDef* s_huart = nullptr;
+struct UartRegistryEntry {
+    UART_HandleTypeDef* handle = nullptr;
+    Stm32::Stm32UartDriver* component = nullptr;
+};
+
+UartRegistryEntry s_uartRegistry[USART_INSTANCE_CAPACITY];
 
 //! Convert a HAL-free UsartInstance to the corresponding HAL handle.
 UART_HandleTypeDef* toHalHandle(Stm32::UsartInstance instance) {
@@ -158,24 +169,44 @@ void callInstanceInit(Stm32::UsartInstance instance) {
 
 }  // namespace
 
+namespace {
+
+//! Look up which live Stm32UartDriver instance (if any) owns `huart`, by
+//! linear scan of the small (<=8-entry) registry. Negligible ISR cost, and
+//! the only way to resolve identity: the HAL calls these callbacks with no
+//! instance/context argument, only the raw handle pointer.
+Stm32::Stm32UartDriver* findUartComponent(UART_HandleTypeDef* huart) {
+    for (FwSizeType i = 0; i < USART_INSTANCE_CAPACITY; i++) {
+        if (s_uartRegistry[i].handle == huart && s_uartRegistry[i].component != nullptr) {
+            return s_uartRegistry[i].component;
+        }
+    }
+    return nullptr;
+}
+
+}  // namespace
+
 extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef* huart) {
     FW_ASSERT(huart != nullptr);
-    if (huart == s_huart && s_instance != nullptr) {
-        s_instance->signalTxComplete();
+    Stm32::Stm32UartDriver* const component = findUartComponent(huart);
+    if (component != nullptr) {
+        component->signalTxComplete();
     }
 }
 
 extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef* huart, uint16_t Size) {
     FW_ASSERT(huart != nullptr);
-    if (huart == s_huart && s_instance != nullptr) {
-        s_instance->signalRxChunk(Size);
+    Stm32::Stm32UartDriver* const component = findUartComponent(huart);
+    if (component != nullptr) {
+        component->signalRxChunk(Size);
     }
 }
 
 extern "C" void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
     FW_ASSERT(huart != nullptr);
-    if (huart == s_huart && s_instance != nullptr) {
-        s_instance->signalUartError(huart->ErrorCode);
+    Stm32::Stm32UartDriver* const component = findUartComponent(huart);
+    if (component != nullptr) {
+        component->signalUartError(huart->ErrorCode);
     }
 }
 
@@ -201,8 +232,13 @@ bool Stm32UartDriver ::hwOpen(UsartInstance instance, U32 preemptPriority, U32 s
     HAL_NVIC_SetPriority(irqn, preemptPriority, subPriority);
     HAL_NVIC_EnableIRQ(irqn);
 
-    s_instance = this;
-    s_huart = halHandle;
+    // Registered by instance index (bounds-safe: the enum itself can't
+    // index outside the table), not a single shared pointer -- this is
+    // what makes a second, simultaneously-open instance safe.
+    FW_ASSERT(static_cast<FwSizeType>(instance) < USART_INSTANCE_CAPACITY,
+              static_cast<FwAssertArgType>(instance));
+    s_uartRegistry[static_cast<FwSizeType>(instance)] = {halHandle, this};
+
     this->m_txDmaBusy = false;
     this->m_rxChunkReady = false;
     this->m_rxChunkLen = 0;
@@ -221,9 +257,11 @@ bool Stm32UartDriver ::hwOpen(UsartInstance instance, U32 preemptPriority, U32 s
 }
 
 bool Stm32UartDriver ::hwStartTx(const U8* data, FwSizeType len) {
+    UART_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
     Stm32::CleanDCacheForDma(data, len);
     const HAL_StatusTypeDef status =
-        HAL_UART_Transmit_DMA(s_huart, const_cast<U8*>(data), static_cast<uint16_t>(len));
+        HAL_UART_Transmit_DMA(halHandle, const_cast<U8*>(data), static_cast<uint16_t>(len));
     if (status != HAL_OK) {
         Fw::LogStringArg _op("Transmit_DMA");
         this->log_WARNING_HI_HalError(_op, static_cast<I32>(status));
@@ -233,7 +271,7 @@ bool Stm32UartDriver ::hwStartTx(const U8* data, FwSizeType len) {
 }
 
 void Stm32UartDriver ::hwAbortTx() {
-    (void)HAL_UART_AbortTransmit(s_huart);
+    (void)HAL_UART_AbortTransmit(toHalHandle(this->m_instance));
 }
 
 void Stm32UartDriver ::hwInvalidateRxStaging() {
@@ -241,17 +279,21 @@ void Stm32UartDriver ::hwInvalidateRxStaging() {
 }
 
 I32 Stm32UartDriver ::hwRestartRx() {
+    UART_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
     const HAL_StatusTypeDef status =
-        HAL_UARTEx_ReceiveToIdle_DMA(s_huart, this->m_rxStaging, static_cast<uint16_t>(RX_STAGING_SIZE));
+        HAL_UARTEx_ReceiveToIdle_DMA(halHandle, this->m_rxStaging, static_cast<uint16_t>(RX_STAGING_SIZE));
     return static_cast<I32>(status);
 }
 
 void Stm32UartDriver ::hwAbortRx() {
-    (void)HAL_UART_AbortReceive(s_huart);
+    (void)HAL_UART_AbortReceive(toHalHandle(this->m_instance));
 }
 
 void Stm32UartDriver ::hwClearUartError() {
-    s_huart->ErrorCode = HAL_UART_ERROR_NONE;
+    UART_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
+    halHandle->ErrorCode = HAL_UART_ERROR_NONE;
 }
 
 void Stm32UartDriver ::hwClassifyUartError(U32 errorCode, bool& isRxAffecting, bool& isDmaAffecting) {
