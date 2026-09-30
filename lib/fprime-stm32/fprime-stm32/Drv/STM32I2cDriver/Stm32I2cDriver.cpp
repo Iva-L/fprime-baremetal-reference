@@ -10,8 +10,6 @@
 #include <fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 #include <Fw/Types/Assert.hpp>
 
-#if I2C_ENABLED
-
 #include "i2c.h"
 
 namespace {
@@ -173,5 +171,3 @@ Drv::I2cStatus Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 le
 }
 
 }  // namespace Stm32
-
-#endif // I2C_ENABLED
