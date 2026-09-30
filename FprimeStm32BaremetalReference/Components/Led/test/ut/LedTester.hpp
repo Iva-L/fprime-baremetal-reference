@@ -7,8 +7,8 @@
 #ifndef LedBlinker_LedTester_HPP
 #define LedBlinker_LedTester_HPP
 
-#include "FprimeBaremetalReference/Components/Led/Led.hpp"
-#include "FprimeBaremetalReference/Components/Led/LedGTestBase.hpp"
+#include "FprimeStm32BaremetalReference/Components/Led/Led.hpp"
+#include "FprimeStm32BaremetalReference/Components/Led/LedGTestBase.hpp"
 
 namespace LedBlinker {
 

@@ -7,7 +7,7 @@
 #ifndef LedBlinker_Led_HPP
 #define LedBlinker_Led_HPP
 
-#include "FprimeBaremetalReference/Components/Led/LedComponentAc.hpp"
+#include "FprimeStm32BaremetalReference/Components/Led/LedComponentAc.hpp"
 
 namespace LedBlinker {
 
