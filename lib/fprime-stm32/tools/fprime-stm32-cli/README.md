@@ -228,7 +228,7 @@ the CubeMX project was generated with the CMake toolchain option.
 What that claim is and isn't based on:
 - **Concretely validated end-to-end** — real `fprime-util build stm32h7`,
   real `arm-none-eabi-size` comparison, real preserved hand-tuned linker
-  rules — only on the **STM32H753XIH6** (`FprimeBaremetalReference`'s
+  rules — only on the **STM32H753XIH6** (`FprimeStm32BaremetalReference`'s
   actual reference deployment).
 - **Not validated on hardware/toolchain for any other specific part.** If a
   chip's CubeMX output doesn't follow this address layout (or doesn't
@@ -256,5 +256,5 @@ pytest
 
 Fixtures under `tests/fixtures/cubemx_stm32h753/` are literal copies of the
 real raw CubeMX output already in this repo
-(`FprimeBaremetalReference/Hardware/stm32h753_hal/`), including its
+(`FprimeStm32BaremetalReference/Hardware/stm32h753_hal/`), including its
 CubeMX-generated `cmake/stm32cubemx/CMakeLists.txt`.

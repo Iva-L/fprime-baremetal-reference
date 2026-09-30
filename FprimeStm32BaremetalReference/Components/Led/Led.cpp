@@ -4,7 +4,7 @@
 // \brief  cpp file for Led component implementation class
 // ======================================================================
 
-#include "FprimeBaremetalReference/Components/Led/Led.hpp"
+#include "FprimeStm32BaremetalReference/Components/Led/Led.hpp"
 
 namespace LedBlinker {
 
