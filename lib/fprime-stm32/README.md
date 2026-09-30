@@ -92,6 +92,18 @@ driver's `open()` call from the topology's `configureTopology()`. Each
 sensor's own `docs/sdd.md` under `lib/fprime-sensors` documents this
 enable-then-select pairing for its specific port.
 
+Enabling more than one instance of the same macro (e.g. both
+`USART1_UART_INSTANCE` and `USART2_UART_INSTANCE`) and adding a second
+`Stm32UartDriver`/`Stm32I2cDriver`/`Stm32SpiDriver`/`STM32Timer` instance to
+the topology is fully supported: every driver in this library resolves its
+HAL pointer(s) from HAL-free per-instance state on every call rather than
+caching them in file-static state shared across instances, so two
+simultaneously-open instances of the same driver type (different bus,
+different chip-select, different physical peripheral) never interfere with
+each other — this is what lets a CubeSat team add, say, a second UART for
+an Iridium modem without touching the existing ground-link UART, or a
+second I2C bus for a second temperature sensor.
+
 ### Adding a new chip family
 
 `Os/Stm32H7` and the `Drv/STM32*` drivers only reach HAL functionality
@@ -260,15 +272,14 @@ csPort, csPin, timeoutMs)` configures the pin as a push-pull output (idle
 high) alongside `MX_SPIn_Init()`, and every `SpiWriteRead`/`SpiReadWrite` call
 drives it low for the exact duration of the `HAL_SPI_TransmitReceive()` call.
 
-Unlike `Stm32I2cDriver` (which caches its resolved HAL handle in a
-file-static pointer — fine for I2C1 being the only bus in use, but a latent
-single-instance limitation), `Stm32SpiDriver` stores only HAL-free state on
-each component instance (the `SpiInstance` enum, the chip-select
-`Stm32::GpioPort`+pin, the timeout) and re-resolves the real HAL pointers
-from that state on every call. This is deliberate, not incidental: a BMP280
-and any future SPI sensor on a different bus or chip-select need two
-simultaneously-open `Stm32SpiDriver` instances that never share mutable
-state.
+`Stm32SpiDriver` stores only HAL-free state on each component instance (the
+`SpiInstance` enum, the chip-select `Stm32::GpioPort`+pin, the timeout) and
+re-resolves the real HAL pointers from that state on every call, matching
+the same per-instance approach every STM32 driver in this library now uses
+(see "Enabling and selecting peripheral instances" above). This is
+deliberate, not incidental: a BMP280 and any future SPI sensor on a
+different bus or chip-select need two simultaneously-open `Stm32SpiDriver`
+instances that never share mutable state.
 
 `open(instance, csPort, csPin, timeoutMs)` selects the peripheral
 (`SpiInstance::Spi5` today; `Spi1`-`Spi4`/`Spi6` are declared for other
@@ -376,13 +387,21 @@ subdirectory are gated to the `stm32h7` target in this directory's own
 **Adding a new driver:** don't add `#ifdef BUILD_UT`/`#ifndef` to
 production code. If the driver only needs HAL calls that map cleanly onto
 a boundary method, follow the `Common`/`Real`/`Stub` split above (copy an
-existing driver's `CMakeLists.txt`). If a routine is genuinely hard to
-fake (e.g. an ISR callback with no user-context pointer, like
-`HAL_UART_TxCpltCallback`), do what `Stm32UartDriver`/`STM32Timer` do:
-route it through a public `signalX()`/`hwArmY()` method on the component
-so a unit test can call it directly to simulate the hardware event, and
-keep a single-instance callback trampoline (a file-scope pointer set once
-in the real `open()`) in the real `.cpp` only.
+existing driver's `CMakeLists.txt`), storing only a HAL-free instance enum
+as a component member and re-resolving the real HAL pointer via
+`toHalHandle()` on every call — never cache it in file-static state,
+which would make two simultaneously-open instances of the driver clobber
+each other (see "Enabling and selecting peripheral instances" above). If a
+routine is genuinely hard to fake (e.g. an ISR callback with no
+user-context pointer, like `HAL_UART_TxCpltCallback`), do what
+`Stm32UartDriver`/`STM32Timer` do: route it through a public
+`signalX()`/`hwArmY()` method on the component so a unit test can call it
+directly to simulate the hardware event, and — since the callback receives
+only a raw HAL handle, not an instance — keep a small fixed-size registry
+table (`{handle, component}` pairs, sized to the instance enum's own
+cardinality, indexed by instance) in the real `.cpp` only, with the
+callback doing a short linear scan to resolve which live component
+instance owns the handle it was given.
 
 Verification commands:
 
