@@ -88,6 +88,15 @@ class STM32Timer final : public STM32TimerComponentBase {
     //! Reprogram channel 2's compare target on the already-armed channel.
     void hwSetCompare(U32 target);
 
+    //! Which TIM peripheral this instance owns, re-resolved to a real HAL
+    //! handle on every hw* call rather than cached in file-static state --
+    //! this is what lets multiple STM32Timer instances (different physical
+    //! timers) be open at the same time. The ISR callback trampoline
+    //! (STM32Timer.cpp) uses a small fixed-size registry indexed by this
+    //! same enum, since the HAL callback itself receives no
+    //! instance/context, only a raw handle.
+    TimerInstance m_instance;
+
     U32 m_periodTicks;   //!< tick period in TIM2 counts (1 count == 1 us)
     U32 m_nextTarget;    //!< CCR2 value currently armed
     U32 m_tickCount;     //!< total ticks raised, mirrors TickCount telemetry

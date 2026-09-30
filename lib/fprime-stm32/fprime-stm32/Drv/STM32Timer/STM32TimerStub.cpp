@@ -20,7 +20,7 @@ extern U32 Stub_hwSetCompareCallCount = 0;  // number of hwSetCompare() reprogra
 namespace Stm32 {
 
 void STM32Timer ::hwSelectInstance(TimerInstance instance) {
-    (void)instance;  // no HAL handle to resolve on the host
+    this->m_instance = instance;  // no HAL handle to resolve on the host
 }
 
 void STM32Timer ::hwArmChannel(U32 target) {

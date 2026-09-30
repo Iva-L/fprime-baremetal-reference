@@ -113,4 +113,20 @@ void STM32TimerTester ::testPollWithTickNoOverrunAtExactBoundary() {
     ASSERT_TLM_OverrunCount(0, 1);
 }
 
+void STM32TimerTester ::testTwoInstancesDoNotInterfere() {
+    this->component.open(Stm32::TimerInstance::Tim2, 1000);
+
+    // A second, freestanding instance on a different physical timer.
+    STM32Timer secondComponent("STM32TimerSecond");
+    secondComponent.open(Stm32::TimerInstance::Tim3, 500);
+
+    // The first instance must still be fully functional, unaffected by the
+    // second instance's later open().
+    this->component.signalTick();
+    this->component.poll();
+    ASSERT_from_CycleOut_SIZE(1);
+    ASSERT_TLM_TickCount_SIZE(1);
+    ASSERT_TLM_TickCount(0, 1);
+}
+
 }  // namespace Stm32
