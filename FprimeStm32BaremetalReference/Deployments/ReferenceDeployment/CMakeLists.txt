@@ -26,7 +26,7 @@ register_fprime_deployment(
         # Compiled directly into the executable (not through the archived
         # FprimeStm32 static library) so its strong ISR definitions always
         # override the weak Default_Handler aliases in the startup file --
-        # see the NOTE in FprimeBaremetalReference/Hardware/CMakeLists.txt
+        # see the NOTE in FprimeStm32BaremetalReference/Hardware/CMakeLists.txt
         # for the full static-archive-extraction explanation.
         "${FPRIME_STM32_IT_SOURCE}"
     DEPENDS

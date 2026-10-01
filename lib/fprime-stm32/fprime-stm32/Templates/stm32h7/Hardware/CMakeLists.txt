@@ -1,5 +1,5 @@
 ####
-# Board hardware support for the FprimeBaremetalReference project.
+# Board hardware support for the FprimeStm32BaremetalReference project.
 #
 # This is deliberately owned by the project, not by the fprime-stm32
 # submodule: fprime-stm32 only expects a target named `FprimeStm32` to exist
@@ -25,7 +25,7 @@ if (FPRIME_PLATFORM STREQUAL "stm32h7")
         # DMA1_Stream0/1_IRQHandler, TIM2_IRQHandler, ...) in favor of the weak
         # infinite-loop aliases. It is instead compiled directly into each
         # deployment executable's own sources -- see
-        # FprimeBaremetalReference/Deployments/ReferenceDeployment/CMakeLists.txt
+        # FprimeStm32BaremetalReference/Deployments/ReferenceDeployment/CMakeLists.txt
         # -- so its strong definitions are always present and correctly
         # override the weak ones.
         config/src/stm32h7_clock.c
