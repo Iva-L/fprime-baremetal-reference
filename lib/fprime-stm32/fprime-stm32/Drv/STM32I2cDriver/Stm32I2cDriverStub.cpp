@@ -10,6 +10,8 @@
 
 #include <fprime-stm32/Drv/STM32I2cDriver/Stm32I2cDriver.hpp>
 
+#if I2C_ENABLED
+
 // Injectable stub state for unit tests
 extern bool Stub_hwOpenSucceeds = true;                                    // simulates MX_I2Cn_Init()/speed-override HAL_I2C_Init()
 extern Drv::I2cStatus Stub_hwMasterTransmitStatus = Drv::I2cStatus::I2C_OK;  // status hwMasterTransmit() reports
@@ -68,3 +70,5 @@ Drv::I2cStatus Stm32I2cDriver ::hwMasterReceive(U16 devAddress, U8* data, U16 le
 }
 
 }  // namespace Stm32
+
+#endif // I2C_ENABLED

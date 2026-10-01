@@ -10,6 +10,10 @@
 // USART/UART peripheral instances
 // ======================================================================
 
+#ifndef USART_ENABLED
+#define USART_ENABLED (true)
+#endif  // USART_ENABLED
+
 #ifndef USART1_UART_INSTANCE
 #define USART1_UART_INSTANCE (true) //!< Indicates whether the USART1 peripheral instance is enabled
 #endif  // USART1_UART_INSTANCE
@@ -46,6 +50,10 @@
 // I2C peripheral instances
 // ======================================================================
 
+#ifndef I2C_ENABLED
+#define I2C_ENABLED (true)
+#endif  // I2C_ENABLED
+
 #ifndef I2C1_INSTANCE
 #define I2C1_INSTANCE (true) //!< Indicates whether the I2C1 peripheral instance is enabled
 #endif  // I2C1_INSTANCE
@@ -66,6 +74,9 @@
 // TIM peripheral instances
 // ======================================================================
 
+#ifndef TIM_ENABLED
+#define TIM_ENABLED (true)
+#endif  // TIM_ENABLED
 
 #ifndef TIM1_INSTANCE
 #define TIM1_INSTANCE (false) //!< Indicates whether the TIM1 peripheral instance is enabled

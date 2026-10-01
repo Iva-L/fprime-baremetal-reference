@@ -94,22 +94,6 @@ FillZerobss:
 LoopFillZerobss:
   cmp r2, r4
   bcc FillZerobss
-  ldr r2, =_sdtcm_bss
-  ldr r4, =_edtcm_bss
-  movs r3, #0
-  b LoopFillZeroDtcmBss
-
-FillZeroDtcmBss:
-  str r3, [r2]
-  adds r2, r2, #4
-
-LoopFillZeroDtcmBss:
-  cmp r2, r4
-  bcc FillZeroDtcmBss
-
-/* Register the fixed allocator before any C++ constructor can call new. */
-  bl Stm32_registerBootstrapAllocator
-
 
 /* Call static constructors */
     bl __libc_init_array

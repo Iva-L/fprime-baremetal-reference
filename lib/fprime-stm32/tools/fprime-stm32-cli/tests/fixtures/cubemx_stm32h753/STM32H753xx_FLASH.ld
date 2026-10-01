@@ -55,16 +55,16 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-DTCM_RAM  (xrw) : ORIGIN = 0x20000000, LENGTH = 128K
-AXI_SRAM  (xrw) : ORIGIN = 0x24000000, LENGTH = 512K
-RAM_D2    (xrw) : ORIGIN = 0x30000000, LENGTH = 288K
-RAM_D3    (xrw) : ORIGIN = 0x38000000, LENGTH = 64K
-ITCM_RAM  (xrw) : ORIGIN = 0x00000000, LENGTH = 64K
-FLASH     (rx)  : ORIGIN = 0x08000000, LENGTH = 2048K
+DTCMRAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
+RAM (xrw)      : ORIGIN = 0x24000000, LENGTH = 512K
+RAM_D2 (xrw)      : ORIGIN = 0x30000000, LENGTH = 288K
+RAM_D3 (xrw)      : ORIGIN = 0x38000000, LENGTH = 64K
+ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
 }
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(DTCM_RAM) + LENGTH(DTCM_RAM);    /* end of RAM */
+_estack = ORIGIN(DTCMRAM) + LENGTH(DTCMRAM);    /* end of RAM */
 _sstack = _estack - _Min_Stack_Size;
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
@@ -166,7 +166,7 @@ SECTIONS
     *(.RamFunc*)       /* .RamFunc* sections */
 
     . = ALIGN(4);
-  } >AXI_SRAM AT> FLASH
+  } >DTCMRAM AT> FLASH
 
  /* Initialized TLS data section */
   .tdata : ALIGN(4)
@@ -176,7 +176,7 @@ SECTIONS
     _edata = .;        /* define a global symbol at data end */
     PROVIDE(__data_end = .);
     PROVIDE(__tdata_end = .);
-  } >AXI_SRAM AT> FLASH
+  } >DTCMRAM AT> FLASH
 
   PROVIDE( __tdata_start = ADDR(.tdata) );
   PROVIDE( __tdata_size = __tdata_end - __tdata_start );
@@ -200,7 +200,7 @@ SECTIONS
     *(.tbss .tbss.*)
     . = ALIGN(4);
     PROVIDE( __tbss_end = . );
-  } >AXI_SRAM
+  } >DTCMRAM
 
   PROVIDE( __tbss_start = ADDR(.tbss) );
   PROVIDE( __tbss_size = __tbss_end - __tbss_start );
@@ -214,20 +214,6 @@ SECTIONS
   PROVIDE( __arm32_tls_tcb_offset = MAX(8, __tls_align) );
   PROVIDE( __arm64_tls_tcb_offset = MAX(16, __tls_align) );
 
-  .dtcm_bss (NOLOAD) : ALIGN(4)
-  {
-    . = ALIGN(4);
-    _sdtcm_bss = .;
-
-    *(.dtcm_bss)
-    *(.dtcm_bss.*)
-    *(.bss._ZN7CdhCore7cmdDispE)
-    *(.bss._ZN12FileHandling5prmDbE)
-
-    . = ALIGN(4);
-    _edtcm_bss = .;
-  } >DTCM_RAM
-
   .bss (NOLOAD) : ALIGN(4)
   {
     *(.bss)
@@ -238,7 +224,7 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
       PROVIDE( __bss_end = .);
-  } >AXI_SRAM
+  } >DTCMRAM
   PROVIDE( __non_tls_bss_start = ADDR(.bss) );
 
   PROVIDE( __bss_start = __tbss_start );
@@ -253,7 +239,7 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >DTCM_RAM
+  } >DTCMRAM
 
 
 
