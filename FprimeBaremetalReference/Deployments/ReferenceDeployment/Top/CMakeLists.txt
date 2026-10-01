@@ -20,6 +20,7 @@ register_fprime_module(
         "${CMAKE_CURRENT_LIST_DIR}/ReferenceDeploymentTopology.cpp"
     DEPENDS
         Fw_Logger
+        FprimeStm32Allocator
 )
 
 target_include_directories(ReferenceDeployment_Top PUBLIC

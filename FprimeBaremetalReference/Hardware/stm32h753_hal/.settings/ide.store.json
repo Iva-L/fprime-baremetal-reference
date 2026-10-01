@@ -1,0 +1,10 @@
+{
+  "source": {
+    "sourceType": "STM32CubeMX"
+  },
+  "board": "STM32H753I-EVAL2",
+  "device": "STM32H753XIH6",
+  "core": "Cortex-M7",
+  "order": 0,
+  "toolchain": "GCC"
+}

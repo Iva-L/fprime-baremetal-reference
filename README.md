@@ -10,8 +10,33 @@ F´ (F Prime) is a component-driven framework for developing and deploying
 spaceflight and other embedded software applications. See the
 [F´ website](https://fprime.jpl.nasa.gov).
 
-Board-specific STM32H7 hardware, OSAL, HAL, and driver documentation is kept in
-the reusable [`lib/fprime-stm32` module](lib/fprime-stm32/README.md).
+`lib/fprime-stm32` is a chip-family-portable F´ library (STM32H7 today, other
+STM32 families addable without forking it): reusable OSAL delegates, drivers,
+and a bootstrap allocator that any consuming project gets "for free," while
+everything CubeMX-generated or board-specific (this board's `.ioc` output,
+clock/tick-source glue, the linker script) stays owned by this project in
+`FprimeBaremetalReference/Hardware/`. See the
+[`lib/fprime-stm32` module README](lib/fprime-stm32/README.md) for the full
+architecture and the driver-configuration pattern described below. Sensor
+components (currently an MPU-6050 IMU, wired directly to `Stm32I2cDriver`) come
+from the [`fprime-sensors`](https://github.com/fprime-community/fprime-sensors)
+submodule and connect directly to the STM32 drivers' ports.
+
+## Configuring which hardware ports are enabled
+
+Every STM32 driver (`Stm32UartDriver`, `Stm32I2cDriver`, `STM32Timer`) reads
+which peripheral instance it's allowed to use from
+`Stm32Config.hpp` — a `#define`-per-instance file (e.g. `I2C1_INSTANCE`,
+`TIM2_INSTANCE`) that keeps a driver from touching a peripheral your board's
+`.ioc` never actually configured. The library ships a default copy at
+`lib/fprime-stm32/Drv/config/Stm32Config.hpp`; this project overrides it with
+its own copy at `FprimeBaremetalReference/config/fprime-stm32/Stm32Config.hpp`
+(via `settings.ini`'s `config_directory`) to match this board's real wiring.
+When starting a new project from this reference, edit the override copy, not
+the library's default. Selecting a disabled instance in a driver's `open()`
+call is treated as a build-time mistake and fails a `FW_ASSERT`, not a
+runtime condition to recover from — see each sensor's `docs/sdd.md` for the
+exact enable-then-select steps.
 
 ## Build
 
@@ -107,6 +132,10 @@ setup, and run with cooperative dispatch enabled. Recorded validation includes:
 - All registered active-component queues created and dispatched successfully.
 - The USART1 DMA ground link exercised with command, telemetry, and event
   traffic through `fprime-gds`.
+- `Stm32::Stm32I2cDriver` (I2C1, blocking/polled) driving a real MPU-6050 IMU
+  through `fprime-sensors`' `MpuImu.ImuManager` component, wired directly to
+  the driver's `Drv.I2c` ports with no adapter — accel/gyro telemetry and
+  range/error events confirmed streaming correctly through `fprime-gds`.
 
 Detailed board pin mappings, clock initialization, DMA cache requirements,
 driver behavior, hardware measurements, and the remaining STM32 soak tests are
@@ -122,7 +151,9 @@ Two independent layers of automated testing back this deployment:
   for a stub on the host, so `Stm32GpioDriver`, `Stm32UartDriver`, and
   `STM32Timer` all get real GTest coverage without an ARM toolchain. See
   ["Host unit testing"](lib/fprime-stm32/README.md#host-unit-testing-fprime-util-check)
-  in `lib/fprime-stm32/README.md` for the pattern.
+  in `lib/fprime-stm32/README.md` for the pattern. `Stm32I2cDriver` follows
+  the same `Common`/`Real`/`Stub` split but has no `test/ut/` files written
+  yet — `register_fprime_ut` is scaffolded but commented out.
 - **Hardware-in-the-loop integration tests** (`pytest` + the F´ GDS
   Integration Test API, against the real board): `led_integration_tests.py`
   and `uart_integration_tests.py` drive commands over the live ground link
@@ -137,8 +168,16 @@ Two independent layers of automated testing back this deployment:
 - Validate TIM2 rollover, interrupt masking, and long-duration stability.
 - Continue hardware-in-the-loop automation for the STM32 target.
 - Add persistent file support for the MicroFs-backed services.
-- Fix `Svc.Seq`'s `SequenceArgumentsMaxSize` config gap on the native/host
-  platform so a project-wide `fprime-util check` succeeds from the repo root,
-  not just from each component's own directory.
-
-The personal progress checklist is available in [Checklist.md](Checklist.md).
+- Run the full I2C exit-criterion soak (1,000-iteration read at 400 kHz with
+  explicit event evidence for every injected error path — NACK, timeout, bus
+  error), not just confirmed-working normal operation.
+- `Stm32I2cDriver` has no host unit tests yet, despite already following the
+  `Common`/`Real`/`Stub` split; write them.
+- When adding another `fprime-sensors` family (e.g. `Bmp280` for Week 11's
+  SPI driver), register only its `Types`/`Ports`/`Components` directly in
+  `CMakeLists.txt` — don't add the whole library via `library_locations` or
+  that family's own top-level `CMakeLists.txt`. Both pull in that family's
+  bundled example `Subtopology`, which hardcodes a `Drv.Linux*Driver` type
+  that doesn't exist in the fpp model on `stm32h7` and breaks the build. See
+  `lib/fprime-stm32/README.md`'s "Adding a sensor" section for the exact
+  pattern already used for `MpuImu`.

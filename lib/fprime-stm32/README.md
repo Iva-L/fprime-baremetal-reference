@@ -32,20 +32,83 @@ used by the direct bare-metal GPIO examples.
 
 ## Contents
 
-- `Drivers/CMSIS`: STM32H7 CMSIS device headers and startup support
-- `Drivers/STM32H7xx_HAL_Driver`: the selected STM32 HAL implementation
-- `Os`: STM32H7 bare-metal delegates for Task, Mutex, Queue, and RawTime
+- `Os/Stm32H7`: STM32H7 bare-metal delegates for Task, Mutex, Queue, and RawTime
 - `Drv/STM32GpioDriver`: passive GPIO input/output driver
-- `Drv/STM32Timer`: TIM2 channel 2 output-compare tick driver
+- `Drv/STM32Timer`: channel-2 output-compare tick driver, instance-selectable
+  (`Stm32::TimerInstance::Tim1`/`Tim2`/`Tim3`/`Tim4`/`...`) via `open()`
 - `Drv/STM32UartDriver`: USART1 DMA-backed byte-stream driver
-- `include`: shared HAL configuration, cache helpers, and interrupt declarations
-- `src`: clock, MSP, peripheral, interrupt, and TIM2 clock support
+- `Drv/STM32I2cDriver`: blocking/polled I2C master driver (`Drv.I2c`)
+- `Drv/config`: driver-tuning headers (e.g. `UartDriverConfig.hpp`) and
+  `Stm32Config.hpp`, the per-peripheral-instance enable/disable switchboard
+  used by every driver below (see "Enabling and selecting peripheral
+  instances")
+- `Allocator`: fixed-pool bootstrap allocator + newlib `--wrap` traps
+  enforcing the no-heap-after-bootstrap rule -- fully hardware-agnostic, so
+  every project gets it without hand-rolling one
+- `Core/CortexM7`: ARM-core-level helpers (currently just D-cache
+  maintenance), grouped by core rather than by ST family since they only
+  depend on which Cortex-M core is in use
 
-`CMakeLists.txt` builds the HAL support as `FprimeStm32` and registers the OSAL
-and driver subdirectories with F´. The real interrupt implementation in
-`src/stm32h7xx_it.c` must be linked directly into the deployment executable,
-rather than only through the static library, so its strong handlers override the
-startup file's weak `Default_Handler` aliases.
+This library is hardware-agnostic: it contains no CubeMX-generated code and
+no board-specific source. It only expects a CMake target named `FprimeStm32`
+to already exist -- built and exposed by the *consuming* project, along with
+its public include paths for `main.h`, `stm32h7xx_hal_conf.h`, and the rest
+of the CubeMX/HAL headers. In this repository that target is defined in
+`FprimeBaremetalReference/Hardware/CMakeLists.txt`, which builds the actual
+CubeMX-generated project (regenerable in place from its own `.ioc` file) plus
+a handful of hand-written, project-specific clock/tick-source glue (which
+timer backs `Os::RawTime`, the exact PLL/oscillator sequence -- these are
+peripheral-*role* choices baked into one board's `.ioc`, not family-wide
+constants, so they stay project-owned even though they rarely change). This
+split means retargeting this library to different hardware never requires
+forking it -- only editing the consuming project's own `Hardware/` directory.
+The real interrupt implementation (`stm32h7xx_it.c`) must be linked directly
+into each deployment executable, rather than only through the `FprimeStm32`
+static library, so its strong handlers override the startup file's weak
+`Default_Handler` aliases -- see the NOTE in
+`FprimeBaremetalReference/Hardware/CMakeLists.txt`.
+
+### Enabling and selecting peripheral instances
+
+`Stm32UartDriver`, `Stm32I2cDriver`, and `STM32Timer` all resolve their
+peripheral instance (`USART1_UART_INSTANCE`, `I2C1_INSTANCE`, `TIM2_INSTANCE`,
+...) through `#define`s in `Drv/config/Stm32Config.hpp`, each defaulting to
+`false` except the instances this reference board already uses. A driver's
+`toHalHandle(instance)` returns `nullptr` for a `false` instance, and the
+calling code immediately `FW_ASSERT`s on that `nullptr` — selecting a
+disabled instance in an `open()` call is a build-time configuration mistake,
+not a runtime condition to gracefully handle.
+
+The library's copy of `Stm32Config.hpp` is the default; a consuming project
+overrides it by placing its own copy at the same relative path under its
+`settings.ini`-configured `config_directory` (this project's override lives
+at `FprimeBaremetalReference/config/fprime-stm32/Stm32Config.hpp`). When
+retargeting this library to a new board, edit only the override copy — enable
+the instances your `.ioc` actually configured, and pass the matching enum
+value (`Stm32::I2cInstance::I2c1`, `Stm32::TimerInstance::Tim2`, ...) to the
+driver's `open()` call from the topology's `configureTopology()`. Each
+sensor's own `docs/sdd.md` under `lib/fprime-sensors` documents this
+enable-then-select pairing for its specific port.
+
+### Adding a new chip family
+
+`Os/Stm32H7` and the `Drv/STM32*` drivers only reach HAL functionality
+through CubeMX's own per-peripheral headers (`main.h`, `gpio.h`, `usart.h`,
+`i2c.h`, `tim.h`, `dma.h`) -- CubeMX generates these under the *same* names
+for every STM32 family, unlike the family-named umbrella headers
+(`stm32h7xx_hal.h`, `stm32f4xx_hal.h`, ...). Never include a family-named HAL
+header directly from library code; include the matching CubeMX per-peripheral
+header instead (it chains to the right family headers with the right
+pre-defines already set up). This is what keeps `Drv/STM32*` family-portable
+without any per-family duplication.
+
+`Os/Stm32H7` itself *is* family-specific (its name says so) because OSAL
+backends for different families are mutually exclusive per build. To add a
+new family: create `Os/Stm32<Family>/` alongside it with the same four
+`register_os_implementation` calls (`SUFFIX` = the new family name), and add
+an `elseif (FPRIME_PLATFORM STREQUAL "stm32<family>")` branch in
+`Os/CMakeLists.txt`. The `Drv/STM32*/CMakeLists.txt` real/stub selection
+already matches any `stm32*` platform, so no change is needed there.
 
 ## Integration and build
 
@@ -104,6 +167,77 @@ fix, while the board was still running from the approximately 64 MHz HSI. The
 USART baud rate self-adjusted from the live peripheral clock query, so the link
 remained valid, but an extended ground-link soak at the corrected PLL clock is
 still required.
+
+## I2C bus (`Stm32I2cDriver`)
+
+`Stm32::Stm32I2cDriver` implements the framework's `Drv.I2c` interface
+(guarded, synchronous `write`/`read`/`writeRead` ports, each returning
+`Drv::I2cStatus` directly) against I2C1 on PB6/PB7 (SCL/SDA). Unlike
+`Stm32UartDriver`, it is deliberately blocking/polled, not interrupt-driven:
+`HAL_I2C_MspInit()` only enables the peripheral clock/GPIO, no NVIC
+event/error interrupt is armed, and every `HAL_I2C_Master_Transmit`/`_Receive`
+call is bounded by a fixed 10 ms watchdog passed as the HAL's own `Timeout`
+parameter. This is a deliberate choice, not a shortcut: `Drv.I2c` is a
+synchronous contract (the same one `Drv::LinuxI2cDriver` implements by
+blocking on `ioctl`), the cyclic executive has no thread to free up by not
+blocking, and a real I2C transaction at 400 kHz is sub-millisecond. Interrupts
+would only earn their complexity back for `writeRead`'s one real limitation:
+it is two back-to-back blocking calls (STOP then START), not a single
+electrically-held repeated START, which is safe on this single-master bus but
+would need the sequential IT/DMA API (with I2C1's NVIC interrupt enabled) for
+a sensor that strictly requires the bus held across the register-address
+write.
+
+`open(instance, busSpeed)` selects both the peripheral (`I2cInstance::I2c1`
+today; `I2c2`/`I2c3`/`I2c4` are declared for other boards but not yet
+CubeMX-configured) and a bus speed preset (`I2cBusSpeed::Standard`/`Fast`/
+`FastPlus` — CubeMX-computed `Timing` register values for this project's
+actual D2PCLK1 clock, since the H7 I2C peripheral has no runtime baud-rate
+formula the way UART does). It follows the same `Common`/`Real`/`Stub` HAL
+boundary convention described below, with one variant: `open()` itself is
+implemented directly in `Stm32I2cDriver.cpp`/`Stm32I2cDriverStub.cpp` rather
+than delegating to a private `hwOpen()`, since (unlike UART's DMA/ISR setup)
+there's no separate hardware-independent work for a shared `Common.cpp` to do
+around it.
+
+Validated live against a real MPU-6050 IMU (wake-up register write, then
+repeated 14-byte accel/gyro/temp reads) — see "Adding a sensor" below for how
+that's wired without any application code touching the I2C bus directly.
+
+### Adding a sensor
+
+Connect a sensor's ports directly to `Stm32I2cDriver`'s `write`/`read`/
+`writeRead` — if the sensor component already imports the framework's
+`Drv.I2c`/`Drv.I2cWriteRead` port types (check its `.fpp`), no adapter
+component is needed. This is exactly how the MPU-6050 was wired:
+`fprime-sensors`' `MpuImu.ImuManager` (a `queued` component with its own
+internal reset/enable/configure/read state machine) declares `busWrite:
+Drv.I2c` / `busWriteRead: Drv.I2cWriteRead` output ports, connected straight
+to `i2cDriver.write`/`i2cDriver.writeRead` in `Top/topology.fpp`. Its standard
+command/event/telemetry/param/time ports wire themselves via the topology's
+existing pattern-graph specifiers (`command connections instance
+CdhCore.cmdDisp`, etc.) — the only manual connections needed were the two I2C
+ports and a rate-group tick into its `run` port.
+
+**Don't use the sensor library's own bundled example `Subtopology`
+(`MpuImuSubtopologyConfig.fpp` etc.), and don't add the whole library via
+`settings.ini`'s `library_locations`.** Those bundled Subtopologies hardcode a
+`Drv.Linux*Driver` instance type (e.g. `Drv.LinuxI2cDriver` for `MpuImu`,
+`Drv.LinuxSpiDriver` for `Bmp280`). Since Linux-only driver modules are
+skipped outright on `stm32h7` — not just their C++ target, the type doesn't
+exist in the fpp model at all — `fpp-to-cpp` fails with `"symbol Drv is not
+defined"` the instant any bundled Subtopology config gets registered, whether
+or not the deployment references it. Instead, register only the specific
+modules actually needed (for `MpuImu`: `Helpers`, `MpuImu/Types`,
+`MpuImu/Ports`, `MpuImu/Components`) directly via `add_fprime_subdirectory` in
+the project's top-level `CMakeLists.txt`, skipping each family's own
+top-level `CMakeLists.txt` (that's what pulls in `Subtopology`). Because the
+library's own sources `#include "fprime-sensors/..."` (paths relative to the
+library root), also add `lib/fprime-sensors` as a plain
+`include_directories()` root — both the source tree and
+`${CMAKE_CURRENT_BINARY_DIR}/lib/fprime-sensors`, where fpp generates the
+matching `*Ac.hpp` headers when the library isn't registered through
+`library_locations`.
 
 ## Hardware validation
 
@@ -221,7 +355,13 @@ fprime-util check --coverage   # same, plus a line/function/branch coverage repo
 - Re-verify the bootstrap-pool usage figure in "Memory and placement" live on
   hardware; it's a runtime allocation count, not a static ELF section, so it
   couldn't be refreshed by the host-only `baremetal-size` re-measurement.
-- `Svc.Seq`'s `SequenceArgumentsMaxSize` config constant isn't defined for the
-  native/host platform, so a project-wide `fprime-util check` from the repo
-  root fails on that unrelated module; run `fprime-util check` from each
-  driver's own directory (as shown above) until that gap is fixed.
+- `Stm32I2cDriver` has no `test/ut/` files yet, despite already following the
+  `Common`/`Real`/`Stub` split (`register_fprime_ut` is scaffolded but
+  commented out in its `CMakeLists.txt`) — write them.
+- Run the full I2C exit-criterion soak on real hardware: 1,000 iterations at
+  400 kHz with explicit event evidence for every injected error path (NACK,
+  timeout, bus error), not just confirmed-working normal operation.
+- If a sensor needs a true repeated START (loses its register pointer across
+  a STOP), upgrade `writeRead` to the sequential IT/DMA API with I2C1's NVIC
+  interrupt enabled — the current STOP-then-START is safe on this
+  single-master bus but isn't electrically a repeated START.

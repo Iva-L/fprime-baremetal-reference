@@ -57,8 +57,7 @@ module ReferenceDeployment {
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
-
-
+    
   # ----------------------------------------------------------------------
   # Passive component instances
   # ----------------------------------------------------------------------
@@ -74,5 +73,7 @@ module ReferenceDeployment {
   instance comDriver: Stm32.Stm32UartDriver base id 0x10014000
 
   instance gpioDriver: Stm32.Stm32GpioDriver base id 0x10015000
+
+  instance i2cDriver: Stm32.Stm32I2cDriver base id 0x10016000
 
 }
