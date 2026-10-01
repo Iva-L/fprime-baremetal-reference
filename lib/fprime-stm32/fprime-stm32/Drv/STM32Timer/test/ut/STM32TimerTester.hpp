@@ -56,6 +56,14 @@ class STM32TimerTester final : public STM32TimerGTestBase {
     //! per the real driver's `>= 0` signed-difference check
     void testPollWithTickNoOverrunAtExactBoundary();
 
+    //! Two simultaneously-open STM32Timer instances (different physical
+    //! timers) don't share any mutable state: opening a second instance
+    //! after the first is already open must not disturb the first
+    //! instance's own tick handling. Before the multi-instance fix, the
+    //! real HAL boundary's hwSelectInstance() would have hard FW_ASSERT'd
+    //! on this second open() outright.
+    void testTwoInstancesDoNotInterfere();
+
   private:
     // ----------------------------------------------------------------------
     // Test support

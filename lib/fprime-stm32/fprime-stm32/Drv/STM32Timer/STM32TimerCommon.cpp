@@ -14,6 +14,7 @@ namespace Stm32 {
 
 STM32Timer ::STM32Timer(const char* const compName)
     : STM32TimerComponentBase(compName),
+      m_instance(TimerInstance::Tim2),
       m_periodTicks(0),
       m_nextTarget(0),
       m_tickCount(0),

@@ -119,6 +119,15 @@ class Stm32UartDriver final : public Stm32UartDriverComponentBase {
     static constexpr FwSizeType RX_RING_SIZE = Stm32UartDriverConfig::RX_RING_SIZE;
     static constexpr FwSizeType RX_STAGING_SIZE = Stm32UartDriverConfig::RX_STAGING_SIZE;
 
+    //! Which USART/UART peripheral this instance owns, re-resolved to a real
+    //! HAL handle on every hw* call rather than cached in file-static state
+    //! -- this is what lets multiple Stm32UartDriver instances (e.g. USART1
+    //! for the ground link and USART2 for a second radio) be open at the
+    //! same time. The ISR callback trampoline (Stm32UartDriver.cpp) uses a
+    //! small fixed-size registry indexed by this same enum, since the HAL
+    //! callbacks themselves receive no instance/context, only a raw handle.
+    UsartInstance m_instance;
+
     //! RX ring buffer and associated state.
     U8 m_rxRing[RX_RING_SIZE];
     FwSizeType m_rxHead;

@@ -13,15 +13,22 @@
 
 namespace {
 
-//! Single-instance callback trampoline: the ISR callback is a free function
-//! with no user-context pointer, and the topology only ever instantiates
-//! one STM32Timer against one physical TIM peripheral.
-Stm32::STM32Timer* s_instance = nullptr;
+//! Callback registry: the ISR callback below is a free function with no
+//! user-context pointer, only a raw TIM_HandleTypeDef*, so mapping back to
+//! "which STM32Timer instance owns this handle" needs a table rather than
+//! a single cached pointer -- that's what lets multiple instances
+//! (different physical timers) be open at the same time. Indexed by
+//! TimerInstance's own cardinality, matching the "named capacity constant"
+//! convention already used elsewhere in this codebase (e.g.
+//! Os::Baremetal::TaskRunner::TASK_CAPACITY).
+constexpr FwSizeType TIMER_INSTANCE_CAPACITY = 14;
 
-//! HAL handle resolved by hwSelectInstance(), used by every subsequent
-//! hwArmChannel()/hwReadCounter()/hwSetCompare() call -- mirrors
-//! Stm32UartDriver's s_huart/Stm32I2cDriver's s_hi2c.
-TIM_HandleTypeDef* s_htim = nullptr;
+struct TimerRegistryEntry {
+    TIM_HandleTypeDef* handle = nullptr;
+    Stm32::STM32Timer* component = nullptr;
+};
+
+TimerRegistryEntry s_timerRegistry[TIMER_INSTANCE_CAPACITY];
 
 //! Convert a HAL-free TimerInstance to the corresponding HAL handle.
 TIM_HandleTypeDef* toHalHandle(Stm32::TimerInstance instance) {
@@ -106,11 +113,25 @@ TIM_HandleTypeDef* toHalHandle(Stm32::TimerInstance instance) {
     return deviceHandle;
 }
 
+//! Look up which live STM32Timer instance (if any) owns `htim`, by linear
+//! scan of the small (<=14-entry) registry. Negligible ISR cost, and the
+//! only way to resolve identity: the HAL calls this callback with no
+//! instance/context argument, only the raw handle pointer.
+Stm32::STM32Timer* findTimerComponent(TIM_HandleTypeDef* htim) {
+    for (FwSizeType i = 0; i < TIMER_INSTANCE_CAPACITY; i++) {
+        if (s_timerRegistry[i].handle == htim && s_timerRegistry[i].component != nullptr) {
+            return s_timerRegistry[i].component;
+        }
+    }
+    return nullptr;
+}
+
 }  // namespace
 
 extern "C" void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef* htim) {
-    if (htim == s_htim && s_instance != nullptr) {
-        s_instance->signalTick();
+    Stm32::STM32Timer* const component = findTimerComponent(htim);
+    if (component != nullptr) {
+        component->signalTick();
     }
 }
 
@@ -120,32 +141,43 @@ void STM32Timer ::hwSelectInstance(TimerInstance instance) {
     TIM_HandleTypeDef* const halHandle = toHalHandle(instance);
     FW_ASSERT(halHandle != nullptr, static_cast<FwAssertArgType>(instance));
 
-    FW_ASSERT(s_instance == nullptr);
-    s_instance = this;
+    // Registered by instance index (bounds-safe: the enum itself can't
+    // index outside the table), not a single shared pointer -- this is
+    // what makes a second, simultaneously-open instance safe.
+    FW_ASSERT(static_cast<FwSizeType>(instance) < TIMER_INSTANCE_CAPACITY,
+              static_cast<FwAssertArgType>(instance));
+    s_timerRegistry[static_cast<FwSizeType>(instance)] = {halHandle, this};
 
-    s_htim = halHandle;
+    this->m_instance = instance;
 }
 
 void STM32Timer ::hwArmChannel(U32 target) {
+    TIM_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
+
     TIM_OC_InitTypeDef ocConfig = {};
     ocConfig.OCMode = TIM_OCMODE_TIMING;  // "Frozen": compare-match interrupt only, no pin/output effect
     ocConfig.Pulse = target;
     ocConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
     ocConfig.OCFastMode = TIM_OCFAST_DISABLE;
 
-    HAL_StatusTypeDef status = HAL_TIM_OC_ConfigChannel(s_htim, &ocConfig, TIM_CHANNEL_2);
+    HAL_StatusTypeDef status = HAL_TIM_OC_ConfigChannel(halHandle, &ocConfig, TIM_CHANNEL_2);
     FW_ASSERT(status == HAL_OK, static_cast<FwAssertArgType>(status));
 
-    status = HAL_TIM_OC_Start_IT(s_htim, TIM_CHANNEL_2);
+    status = HAL_TIM_OC_Start_IT(halHandle, TIM_CHANNEL_2);
     FW_ASSERT(status == HAL_OK, static_cast<FwAssertArgType>(status));
 }
 
 U32 STM32Timer ::hwReadCounter() {
-    return s_htim->Instance->CNT;
+    TIM_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
+    return halHandle->Instance->CNT;
 }
 
 void STM32Timer ::hwSetCompare(U32 target) {
-    __HAL_TIM_SET_COMPARE(s_htim, TIM_CHANNEL_2, target);
+    TIM_HandleTypeDef* const halHandle = toHalHandle(this->m_instance);
+    FW_ASSERT(halHandle != nullptr);
+    __HAL_TIM_SET_COMPARE(halHandle, TIM_CHANNEL_2, target);
 }
 
 }  // namespace Stm32

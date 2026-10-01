@@ -257,4 +257,24 @@ void Stm32I2cDriverTester ::testWriteReadReceiveFailure() {
     ASSERT_EQ(Stub_lastWriteLen, 1u);  // the write half did run before the failing read
 }
 
+void Stm32I2cDriverTester ::testTwoInstancesDoNotInterfere() {
+    (void)this->component.open(I2cInstance::I2c1);
+
+    // A second, freestanding instance on a different bus. Before the
+    // multi-instance fix, the real HAL boundary cached the resolved handle
+    // in file-static state shared by every Stm32I2cDriver in the process --
+    // opening this second instance would have silently repointed the first
+    // instance's own subsequent transactions.
+    Stm32I2cDriver secondComponent("Stm32I2cDriverSecond");
+    const Fw::Success secondOpenStatus = secondComponent.open(I2cInstance::I2c2);
+    ASSERT_EQ(secondOpenStatus, Fw::Success::SUCCESS);
+
+    // The first instance must still be fully functional, unaffected by the
+    // second instance's later open().
+    U8 backing[2] = {0xAA, 0xBB};
+    Fw::Buffer buffer(backing, sizeof(backing));
+    const Drv::I2cStatus status = this->invoke_to_write(0, 0x50, buffer);
+    ASSERT_EQ(status, Drv::I2cStatus::I2C_OK);
+}
+
 }  // namespace Stm32
